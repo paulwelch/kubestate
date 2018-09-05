@@ -1,0 +1,14 @@
+package: github.com/paulwelch/kubestate
+import:
+- package: k8s.io/client-go
+  version: v6.0.0
+- package: github.com/GoogleCloudPlatform/kubernetes
+  version: v1.13.0-alpha.0
+  subpackages:
+  - pkg/api/v1
+- package: github.com/urfave/cli
+  version: v1.20.0
+- package: github.com/prometheus/client_model/go
+  version: model-0.0.2
+- package: github.com/matttproud/golang_protobuf_extensions/pbutil
+  version: v1.0.1
