@@ -33,6 +33,8 @@ func main() {
 	app.Usage = "Show kubernetes state metrics"
 	app.Action = func(c *cli.Context) error {
 
+		//TODO: add command line help text
+		//TODO: add optional command line arg for kube config
 		configPath := local.Expand("~/.kube/config") //kube config path
 		config, err := clientcmd.BuildConfigFromFlags("", configPath)
 		if err != nil {
@@ -66,16 +68,18 @@ func main() {
 			return cli.NewExitError("Error: kube-state-metrics service is not healthy", 98)
 		}
 
-		//request protobuf
+		//request protobuf using Accept header
 		const acceptHeader = `application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3`
 
-		//gets kube-state-metrics raw data and parse
+		//get kube-state-metrics raw data and parse
 		r = k8sclient.RESTClient().Get().SetHeader("Accept", acceptHeader).RequestURI("/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/metrics").Do()
 		if r.Error() != nil {
 			return r.Error()
 		}
 		resp, _ = r.Raw()
 
+		//Might be faster with parallel go routine to parse, but with higher complexity.
+		//Only ~100 families, so probably not worth it at this time.
 		metricFamilies := make([]dto.MetricFamily, 0)
 		reader := bytes.NewReader(resp)
 		for {
@@ -89,6 +93,7 @@ func main() {
 			metricFamilies = append(metricFamilies, mf)
 		}
 
+		//TODO: add command line args to show state values - possibly: query, metric name, watch
 		//fmt.Println(len(metricFamilies))
 		//fmt.Println(metricFamilies[0])
 
