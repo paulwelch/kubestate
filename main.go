@@ -44,6 +44,7 @@ func main() {
 		if err != nil {
 			return err
 		}
+		//fmt.Println(k8sclient.ServerGroups())
 
 		//determine if kube-state-metrics is available service
 		stateServiceFound := false
@@ -57,9 +58,9 @@ func main() {
 			}
 		}
 		if !stateServiceFound {
-			return cli.NewExitError("Error: kube-state-metrics service not found", 99)
+			return cli.NewExitError("Error: kube-state-metrics service not found. See https://github.com/kubernetes/kube-state-metrics", 99)
 		}
-		r := k8sclient.RESTClient().Get().RequestURI("/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/healthz").Do()
+		r := k8sclient.RESTClient().Get().RequestURI(config.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/healthz").Do()
 		if r.Error() != nil {
 			return r.Error()
 		}
@@ -72,7 +73,7 @@ func main() {
 		const acceptHeader = `application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3`
 
 		//get kube-state-metrics raw data and parse
-		r = k8sclient.RESTClient().Get().SetHeader("Accept", acceptHeader).RequestURI("/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/metrics").Do()
+		r = k8sclient.RESTClient().Get().SetHeader("Accept", acceptHeader).RequestURI(config.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/metrics").Do()
 		if r.Error() != nil {
 			return r.Error()
 		}
@@ -93,10 +94,20 @@ func main() {
 			metricFamilies = append(metricFamilies, mf)
 		}
 
-		//TODO: add command line args to show state values - possibly: query, metric name, watch
+		//TODO: add command line args to show state values - possibly match kubectl pattern: get, describe, watch
 		//fmt.Println(len(metricFamilies))
 		//fmt.Println(metricFamilies[0])
 
+		//get namespaces
+		for _, mf := range metricFamilies {
+			s := string(*mf.Name)
+			if len(s) > 8 && s[0:9] == "kube_pod_" {  //kube_namespace_ 15 kube_deployment_ 16
+				fmt.Println(*mf.Name)
+				fmt.Println((*mf.Type))
+				fmt.Println(*mf.Help)
+				fmt.Println(*mf.Metric[0])
+			}
+		}
 		return nil
 	}
 
