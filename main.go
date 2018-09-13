@@ -31,6 +31,11 @@ func main() {
 	var config string
 	var filter string
 
+	//TODO: expand on filter flag - possible regex, state values
+	//TODO: maybe match kubectl command pattern: get, describe, watch
+	//TODO: add output format options
+	//TODO: add reasonable defaults with no command or flags - maybe a 'top' display
+
 	app := cli.NewApp()
 	app.Name = "kubestate"
 	app.Usage = "Show kubernetes state metrics"
@@ -42,8 +47,8 @@ func main() {
 			Usage: "path to kubeconfig",
 			Destination: &config,
 		},		cli.StringFlag{
-			Name: "metricfilter",
-			Value: "",
+			Name: "filter",
+			Value: "*",
 			Usage: "Metric filter to show",
 			Destination: &filter,
 		},
@@ -51,7 +56,6 @@ func main() {
 
 	app.Action = func(c *cli.Context) error {
 
-		//TODO: add command line help text
 		cfg, err := clientcmd.BuildConfigFromFlags("", local.Expand(config))
 		if err != nil {
 			return err
@@ -108,27 +112,12 @@ func main() {
 			}
 			metricFamilies = append(metricFamilies, mf)
 
-			if *mf.Name == filter {
+			if filter == "*" || *mf.Name == filter {
 				fmt.Println(*mf.Name)
 				fmt.Println((*mf.Type))
 				fmt.Println(*mf.Help)
 				fmt.Println(*mf.Metric[0])
 			}
-
-		//TODO: add command line args to show state values - possibly match kubectl pattern: get, describe, watch
-		//fmt.Println(len(metricFamilies))
-		//fmt.Println(metricFamilies[0])
-
-		//testing results
-	//	for _, mf := range metricFamilies {
-	//		s := string(*mf.Name)
-	//		if len(s) > 8 && s[0:9] == "kube_pod_" {  //kube_namespace_ 15 kube_deployment_ 16
-	//			fmt.Println(*mf.Name)
-	//			fmt.Println((*mf.Type))
-	//			fmt.Println(*mf.Help)
-	//			fmt.Println(*mf.Metric[0])
-	//		}
-
 
 		}
 		return nil
