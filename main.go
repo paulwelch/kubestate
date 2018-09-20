@@ -31,8 +31,9 @@ func main() {
 	var config string
 	var filter string
 
-	//TODO: expand on filter flag - possible regex, state values
+	//TODO: expand on filter flag - possible regex, state values, by namespace, by label
 	//TODO: maybe match kubectl command pattern: get, describe, watch
+	//      ideas for metric views - rolling update state; deployment state, hpa's, jobs, etc
 	//TODO: add output format options
 	//TODO: add reasonable defaults with no command or flags - maybe a 'top' display
 
@@ -40,16 +41,17 @@ func main() {
 	app.Name = "kubestate"
 	app.Usage = "Show kubernetes state metrics"
 
-	app.Flags = []cli.Flag {
+	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name: "config, c",
-			Value: "~/.kube/config",
-			Usage: "path to kubeconfig",
+			Name:        "config, c",
+			Value:       "~/.kube/config",
+			Usage:       "path to kubeconfig",
 			Destination: &config,
-		},		cli.StringFlag{
-			Name: "filter",
-			Value: "*",
-			Usage: "Metric filter to show",
+		},
+		cli.StringFlag{
+			Name:        "filter",
+			Value:       "*",
+			Usage:       "Metric filter to show",
 			Destination: &filter,
 		},
 	}
@@ -113,10 +115,36 @@ func main() {
 			metricFamilies = append(metricFamilies, mf)
 
 			if filter == "*" || *mf.Name == filter {
+				fmt.Println("---------------")
 				fmt.Println(*mf.Name)
-				fmt.Println((*mf.Type))
+				fmt.Println(*mf.Type)
 				fmt.Println(*mf.Help)
-				fmt.Println(*mf.Metric[0])
+
+				//for debugging
+				for i:=0; i<len(mf.Metric); i++ {
+					for j:=0; j<len((*mf.Metric[i]).Label); j++ {
+
+						fmt.Println("---------------")
+						fmt.Printf("Metric %d: Label %d:  %s  value: %s\n", i, j, *mf.Metric[i].Label[0].Name, *mf.Metric[i].Label[0].Value)
+
+						switch *mf.Type {
+
+							case dto.MetricType_COUNTER:
+								fmt.Printf("Counter Value: %f", *mf.Metric[i].Counter.Value)
+
+							case dto.MetricType_GAUGE:
+								fmt.Printf("Gauge Value: %f", *mf.Metric[i].Gauge.Value)
+
+							case dto.MetricType_SUMMARY:
+								fmt.Println(*mf.Metric[i].Summary.Quantile[0].Value)
+								fmt.Println(*mf.Metric[i].Summary.Quantile[0].Quantile)
+								fmt.Println(*mf.Metric[i].Summary.SampleCount)
+								fmt.Println(*mf.Metric[i].Summary.SampleSum)
+
+						}
+					}
+				}
+
 			}
 
 		}
