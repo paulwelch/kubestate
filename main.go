@@ -12,8 +12,8 @@ package main
 
 import (
 	"bytes"
-	_ "code.google.com/p/goprotobuf/proto"
 	"fmt"
+	"github.com/json-iterator/go"
 	"github.com/kubicorn/kubicorn/pkg/local"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	dto "github.com/prometheus/client_model/go"
@@ -29,9 +29,9 @@ import (
 
 func main() {
 	var config string
-	var filter string
-	var raw bool
-	var json bool
+	var filterFlag string
+	var rawFlag bool
+	var jsonFlag bool
 
 	//TODO: expand on filter flag - possible regex, state values, by namespace, by label
 	//TODO: maybe match kubectl command pattern: get, describe, watch
@@ -51,21 +51,21 @@ func main() {
 			Usage:       "path to kubeconfig",
 			Destination: &config,
 		},
-		cli.StringFlag{
-			Name:        "filter, f",
-			Value:       "*",
-			Usage:       "Metric filter to show",
-			Destination: &filter,
-		},
 		cli.BoolFlag{
 			Name:        "raw, r",
 			Usage:       "Show raw response data format",
-			Destination: &raw,
+			Destination: &rawFlag,
 		},
 		cli.BoolFlag{
 			Name:        "json, j",
 			Usage:       "Show JSON format",
-			Destination: &json,
+			Destination: &jsonFlag,
+		},
+		cli.StringFlag{
+			Name:        "filter, f",
+			Value:       "*",
+			Usage:       "Metric filter to show",
+			Destination: &filterFlag,
 		},
 	}
 
@@ -94,7 +94,8 @@ func main() {
 		if !stateServiceFound {
 			return cli.NewExitError("Error: kube-state-metrics service not found. See https://github.com/kubernetes/kube-state-metrics", 99)
 		}
-		r := k8sclient.RESTClient().Get().RequestURI(cfg.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/healthz").Do()
+		req := k8sclient.RESTClient().Get().RequestURI(cfg.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/healthz")
+		r := req.Do()
 		if r.Error() != nil {
 			return r.Error()
 		}
@@ -104,7 +105,7 @@ func main() {
 		}
 
 		//get kube-state-metrics raw data and parse
-		if raw {
+		if rawFlag {
 			//want raw text data, so no protobuf header
 			r = k8sclient.RESTClient().Get().RequestURI(cfg.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/metrics").Do()
 		} else {
@@ -112,18 +113,18 @@ func main() {
 			const acceptHeader= `application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3`
 			r = k8sclient.RESTClient().Get().SetHeader("Accept", acceptHeader).RequestURI(cfg.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/metrics").Do()
 		}
-
 		if r.Error() != nil {
 			return r.Error()
 		}
 		resp, _ = r.Raw()
 
-		if raw {
+		if rawFlag {
 			fmt.Println(string(resp))
+			// if only raw output specified, stop processing here
 			return nil
 		}
 
-
+		//Parse protobuf into MetricFamily array, output family if filter specified
 		//Might be faster with parallel go routine to parse, but with higher complexity.
 		//Only ~100 families, so probably not worth it at this time.
 		metricFamilies := make([]dto.MetricFamily, 0)
@@ -138,12 +139,12 @@ func main() {
 			}
 			metricFamilies = append(metricFamilies, mf)
 
-			if filter == "*" || *mf.Name == filter {
-
-				if json {
-					//TODO: output as json format
-					fmt.Println("Not implemented yet")
-				} else {
+			if filterFlag == "*" || *mf.Name == filterFlag {
+				if jsonFlag && filterFlag != "*" {  //if json output for all metrics, output after loop
+					s, _ := jsoniter.MarshalToString(mf)
+					fmt.Println(s)
+				} else if !jsonFlag {
+					//TODO: default formatted output
 					fmt.Println("---------------")
 					fmt.Println(*mf.Name)
 					fmt.Println(*mf.Type)
@@ -179,6 +180,12 @@ func main() {
 			}
 
 		}
+
+		if jsonFlag && filterFlag == "*" { //all metrics in json format
+			s, _ := jsoniter.MarshalToString(metricFamilies)
+			fmt.Println(s)
+		}
+
 		return nil
 	}
 
