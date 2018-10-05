@@ -19,7 +19,8 @@ Tool Requirements
 ## Running kubestate
 
 ```bash
-» kubestate --help                                            paul@PaulsMacBook
+kubestate --help
+
 NAME:
    kubestate - Show kubernetes state metrics
 
