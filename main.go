@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"log"
 	"os"
@@ -71,40 +72,14 @@ func main() {
 
 	app.Action = func(c *cli.Context) error {
 
-		cfg, err := clientcmd.BuildConfigFromFlags("", local.Expand(config))
-		if err != nil {
-			return err
-		}
-		k8sclient, err := kubernetes.NewForConfig(cfg)
-		if err != nil {
-			return err
-		}
 
-		//determine if kube-state-metrics service is available
-		stateServiceFound := false
-		svcs, err := k8sclient.CoreV1().Services("kube-system").List(v1.ListOptions{})
+		cfg, k8sclient, err := getclient(config)
 		if err != nil {
 			return err
-		}
-		for _, svc := range svcs.Items {
-			if svc.Name == "kube-state-metrics" {
-				stateServiceFound = true
-			}
-		}
-		if !stateServiceFound {
-			return cli.NewExitError("Error: kube-state-metrics service not found. See https://github.com/kubernetes/kube-state-metrics", 99)
-		}
-		req := k8sclient.RESTClient().Get().RequestURI(cfg.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/healthz")
-		r := req.Do()
-		if r.Error() != nil {
-			return r.Error()
-		}
-		resp, _ := r.Raw()
-		if string(resp) != "ok" {
-			return cli.NewExitError("Error: kube-state-metrics service is not healthy", 98)
 		}
 
 		//get kube-state-metrics raw data and parse
+		var r rest.Result
 		if rawFlag {
 			//want raw text data, so no protobuf header
 			r = k8sclient.RESTClient().Get().RequestURI(cfg.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/metrics").Do()
@@ -116,7 +91,7 @@ func main() {
 		if r.Error() != nil {
 			return r.Error()
 		}
-		resp, _ = r.Raw()
+		resp, _ := r.Raw()
 
 		if rawFlag {
 			fmt.Println(string(resp))
@@ -193,4 +168,43 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getclient(config string) (*rest.Config, *kubernetes.Clientset, error) {
+
+	cfg, err := clientcmd.BuildConfigFromFlags("", local.Expand(config))
+	if err != nil {
+		return nil, nil, err
+	}
+	k8sclient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	//determine if kube-state-metrics service is available and healthy
+	stateServiceFound := false
+	svcs, err := k8sclient.CoreV1().Services("kube-system").List(v1.ListOptions{})
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, svc := range svcs.Items {
+		if svc.Name == "kube-state-metrics" {
+			stateServiceFound = true
+		}
+	}
+	if !stateServiceFound {
+		return nil, nil, cli.NewExitError("Error: kube-state-metrics service not found. See https://github.com/kubernetes/kube-state-metrics", 99)
+	}
+	req := k8sclient.RESTClient().Get().RequestURI(cfg.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/healthz")
+	r := req.Do()
+	if r.Error() != nil {
+		return nil, nil, r.Error()
+	}
+	resp, _ := r.Raw()
+	if string(resp) != "ok" {
+		return nil, nil, cli.NewExitError("Error: kube-state-metrics service is not healthy", 98)
+	}
+
+	return cfg, k8sclient, nil
+
 }
