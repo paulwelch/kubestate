@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"log"
 	"os"
+	"time"
 )
 
 func main() {
@@ -44,6 +45,8 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "kubestate"
 	app.Usage = "Show kubernetes state metrics"
+	app.Version = "0.0.1"
+	app.Compiled = time.Now()
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -52,17 +55,8 @@ func main() {
 			Usage:       "path to kubeconfig",
 			Destination: &config,
 		},
-		cli.BoolFlag{
-			Name:        "raw, r",
-			Usage:       "Show raw response data format",
-			Destination: &rawFlag,
-		},
-		cli.BoolFlag{
-			Name:        "json, j",
-			Usage:       "Show JSON format",
-			Destination: &jsonFlag,
-		},
 		cli.StringFlag{
+			//TODO: should filter be a subcommand?
 			Name:        "filter, f",
 			Value:       "*",
 			Usage:       "Metric filter to show",
@@ -70,98 +64,115 @@ func main() {
 		},
 	}
 
-	app.Action = func(c *cli.Context) error {
+	//TODO: refactor to command func's
+	app.Commands = []cli.Command{
+		cli.Command{
+			Name: "get",
+			Usage: "Get metrics",
 
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:        "json, j",
+					Usage:       "Show JSON format",
+					Destination: &jsonFlag,
+				},
+				//TODO: should raw be a command?
+				cli.BoolFlag{
+					Name:        "raw, r",
+					Usage:       "Show raw response data format",
+					Destination: &rawFlag,
+				},
+			},
 
-		cfg, k8sclient, err := getclient(config)
-		if err != nil {
-			return err
-		}
+			Action: func(c *cli.Context) error {
 
-		//get kube-state-metrics raw data and parse
-		var r rest.Result
-		if rawFlag {
-			//want raw text data, so no protobuf header
-			r = k8sclient.RESTClient().Get().RequestURI(cfg.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/metrics").Do()
-		} else {
-			//request protobuf using Accept header
-			const acceptHeader= `application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3`
-			r = k8sclient.RESTClient().Get().SetHeader("Accept", acceptHeader).RequestURI(cfg.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/metrics").Do()
-		}
-		if r.Error() != nil {
-			return r.Error()
-		}
-		resp, _ := r.Raw()
+				//Raw output
+				if rawFlag {
+					resp, err := getRawMetrics(config)
+					if err != nil {
+						return err
+					}
+					fmt.Println(resp)
+					return nil
+				} else if jsonFlag {
+					metricFamilies, err := getMetrics(config)
+					if err != nil {
+						return err
+					}
 
-		if rawFlag {
-			fmt.Println(string(resp))
-			// if only raw output specified, stop processing here
-			return nil
-		}
-
-		//Parse protobuf into MetricFamily array, output family if filter specified
-		//Might be faster with parallel go routine to parse, but with higher complexity.
-		//Only ~100 families, so probably not worth it at this time.
-		metricFamilies := make([]dto.MetricFamily, 0)
-		reader := bytes.NewReader(resp)
-		for {
-			mf := dto.MetricFamily{}
-			if _, err = pbutil.ReadDelimited(reader, &mf); err != nil {
-				if err == io.EOF {
-					break
-				}
-				return fmt.Errorf("Error reading metric family protobuf: %v", err)
-			}
-			metricFamilies = append(metricFamilies, mf)
-
-			if filterFlag == "*" || *mf.Name == filterFlag {
-				if jsonFlag && filterFlag != "*" {  //if json output for all metrics, output after loop
-					s, _ := jsoniter.MarshalToString(mf)
-					fmt.Println(s)
-				} else if !jsonFlag {
-					//TODO: default formatted output
-					fmt.Println("---------------")
-					fmt.Println(*mf.Name)
-					fmt.Println(*mf.Type)
-					fmt.Println(*mf.Help)
-
-					//for debugging
-					for i:=0; i<len(mf.Metric); i++ {
-						for j:=0; j<len((*mf.Metric[i]).Label); j++ {
-
-							fmt.Println("---------------")
-							fmt.Printf("Metric %d: Label %d:  %s  value: %s\n", i, j, *mf.Metric[i].Label[0].Name, *mf.Metric[i].Label[0].Value)
-
-							switch *mf.Type {
-
-								case dto.MetricType_COUNTER:
-									fmt.Printf("Counter Value: %f", *mf.Metric[i].Counter.Value)
-
-								case dto.MetricType_GAUGE:
-									fmt.Printf("Gauge Value: %f", *mf.Metric[i].Gauge.Value)
-
-								case dto.MetricType_SUMMARY:
-									fmt.Println(*mf.Metric[i].Summary.Quantile[0].Value)
-									fmt.Println(*mf.Metric[i].Summary.Quantile[0].Quantile)
-									fmt.Println(*mf.Metric[i].Summary.SampleCount)
-									fmt.Println(*mf.Metric[i].Summary.SampleSum)
-
+					for i := 0; i < len(metricFamilies); i++ {
+						if filterFlag == "*" || *metricFamilies[i].Name == filterFlag {
+							if i == 0 {
+								fmt.Print("[")
+							}
+							s, _ := jsoniter.MarshalToString(metricFamilies[i])
+							fmt.Print(s)
+							if i < (len(metricFamilies) - 1) {
+								fmt.Print(",")
+							} else {
+								fmt.Println("]")
 							}
 						}
 					}
+				} else {
+					//TODO: default formatted output
+					metricFamilies, err := getMetrics(config)
+					if err != nil {
+						return err
+					}
 
+					for i := 0; i < len(metricFamilies); i++ {
+						fmt.Println("---------------")
+						fmt.Println(*metricFamilies[i].Name)
+						fmt.Println(*metricFamilies[i].Type)
+						fmt.Println(*metricFamilies[i].Help)
+
+						//for debugging
+						for i := 0; i < len(metricFamilies[i].Metric); i++ {
+							for j := 0; j < len((*metricFamilies[i].Metric[i]).Label); j++ {
+
+								fmt.Println("---------------")
+								fmt.Printf("Metric %d: Label %d:  %s  value: %s\n", i, j, *metricFamilies[i].Metric[i].Label[0].Name, *metricFamilies[i].Metric[i].Label[0].Value)
+
+								switch *metricFamilies[i].Type {
+
+								case dto.MetricType_COUNTER:
+									fmt.Printf("Counter Value: %f", *metricFamilies[i].Metric[i].Counter.Value)
+
+								case dto.MetricType_GAUGE:
+									fmt.Printf("Gauge Value: %f", *metricFamilies[i].Metric[i].Gauge.Value)
+
+								case dto.MetricType_SUMMARY:
+									fmt.Println(*metricFamilies[i].Metric[i].Summary.Quantile[0].Value)
+									fmt.Println(*metricFamilies[i].Metric[i].Summary.Quantile[0].Quantile)
+									fmt.Println(*metricFamilies[i].Metric[i].Summary.SampleCount)
+									fmt.Println(*metricFamilies[i].Metric[i].Summary.SampleSum)
+
+								}
+							}
+						}
+					}
 				}
+				return nil
+			},
+		},
+		cli.Command{
+			Name: "top",
+			Usage: "Show top resource consumption by deployment",
+			Action: func(c *cli.Context) error {
+				fmt.Println("Implement Top Here")
+				return nil
+			},
+		},
+		cli.Command{
+			Name: "watch",
+			Usage: "Watch metric",
+			Action: func(c *cli.Context) error {
+				fmt.Println("Implement Watch Here")
+				return nil
+			},
+		},
 
-			}
-
-		}
-
-		if jsonFlag && filterFlag == "*" { //all metrics in json format
-			s, _ := jsoniter.MarshalToString(metricFamilies)
-			fmt.Println(s)
-		}
-
-		return nil
 	}
 
 	err := app.Run(os.Args)
@@ -170,7 +181,62 @@ func main() {
 	}
 }
 
-func getclient(config string) (*rest.Config, *kubernetes.Clientset, error) {
+func getRawMetrics(config string) (string, error) {
+	cfg, k8sclient, err := getClient(config)
+	if err != nil {
+		return "", err
+	}
+
+	//get kube-state-metrics raw data and parse
+	var r rest.Result
+
+	r = k8sclient.RESTClient().Get().RequestURI(cfg.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/metrics").Do()
+	if r.Error() != nil {
+		return "", r.Error()
+	}
+	resp, _ := r.Raw()
+
+	return string(resp), nil
+}
+
+func getMetrics(config string) ([]dto.MetricFamily, error) {
+	cfg, k8sclient, err := getClient(config)
+	if err != nil {
+		return nil, err
+	}
+
+	//get kube-state-metrics raw data and parse
+	var r rest.Result
+
+	//request protobuf using Accept header
+	const acceptHeader= `application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3`
+
+	r = k8sclient.RESTClient().Get().SetHeader("Accept", acceptHeader).RequestURI(cfg.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/metrics").Do()
+	if r.Error() != nil {
+		return nil, r.Error()
+	}
+	resp, _ := r.Raw()
+
+	//Parse protobuf into MetricFamily array, output family if filter specified
+	//Might be faster with parallel go routine to parse, but with higher complexity.
+	//Only ~100 families, so probably not worth it at this time.
+	metricFamilies := make([]dto.MetricFamily, 0)
+	reader := bytes.NewReader(resp)
+	for {
+		mf := dto.MetricFamily{}
+		if _, err = pbutil.ReadDelimited(reader, &mf); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("Error reading metric family protobuf: %v", err)
+		}
+		metricFamilies = append(metricFamilies, mf)
+	}
+
+	return metricFamilies, nil
+}
+
+func getClient(config string) (*rest.Config, *kubernetes.Clientset, error) {
 
 	cfg, err := clientcmd.BuildConfigFromFlags("", local.Expand(config))
 	if err != nil {
