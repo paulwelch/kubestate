@@ -92,6 +92,7 @@ func main() {
 					if err != nil {
 						return err
 					}
+
 					fmt.Println(resp)
 					return nil
 				} else if jsonFlag {
