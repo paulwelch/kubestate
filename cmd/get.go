@@ -11,11 +11,13 @@
  package cmd
 
 import (
+	"bufio"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/json-iterator/go"
 	"github.com/urfave/cli"
 	"fmt"
+	"strings"
 )
 
 func Get(c *cli.Context) error {
@@ -31,7 +33,18 @@ func Get(c *cli.Context) error {
 			return err
 		}
 
-		fmt.Println(resp)
+		if filterFlag == "*" {
+			fmt.Println(resp)
+		} else {
+			scanner := bufio.NewScanner(strings.NewReader(resp))
+			for scanner.Scan() {
+				l := scanner.Text()
+				if string(l[0]) != "#" && strings.Split(string(l), "{")[0] == filterFlag {
+					fmt.Println(l)
+				}
+			}
+		}
+
 		return nil
 	} else if outputFormat == "json" {
 		metricFamilies, err := getMetrics(config)
