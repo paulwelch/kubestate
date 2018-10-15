@@ -42,16 +42,8 @@ func main() {
 			Usage:       "path to kubeconfig",
 			Destination: &config,
 		},
-		cli.StringFlag{
-			//TODO: should filter be a subcommand?
-			Name:        "filter, f",
-			Value:       "*",
-			Usage:       "Metric filter to show",
-			Destination: &filterFlag,
-		},
 	}
 
-	//TODO: refactor to command func's
 	app.Commands = []cli.Command{
 		cli.Command{
 			Name: "get",
@@ -66,6 +58,13 @@ func main() {
 					Name:        "raw, r",
 					Usage:       "Show raw response data format",
 				},
+				cli.StringFlag{
+					//TODO: should filter be a subcommand?
+					Name:        "filter, f",
+					Value:       "*",
+					Usage:       "Metric filter family to show",
+					Destination: &filterFlag,
+				},
 			},
 			Action: cmd.Get,
 		},
@@ -78,8 +77,12 @@ func main() {
 			Name: "watch",
 			Usage: "Watch metric",
 			Action: cmd.Watch,
-			},
-
+		},
+		cli.Command{
+			Name: "list",
+			Usage: "List metric families",
+			Action: cmd.List,
+		},
 	}
 
 	err := app.Run(os.Args)
