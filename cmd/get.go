@@ -1,4 +1,14 @@
-package cmd
+/*
+ * Copyright 2018 Paul Welch
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+ */
+
+ package cmd
 
 import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -6,35 +16,16 @@ import (
 	"github.com/json-iterator/go"
 	"github.com/urfave/cli"
 	"fmt"
-	"strings"
 )
 
 func Get(c *cli.Context) error {
 
-	var config string
-	var filterFlag string
-
-	var rawFlag = false
-	var jsonFlag = false
-
-	for _, f := range c.App.Flags {
-		switch strings.Split(f.GetName(), ",")[0] {
-		case "config":
-			config = f.(cli.StringFlag).Value
-		case "filter":
-			filterFlag = f.(cli.StringFlag).Value
-		}
-	}
-
-	if c.IsSet("raw") {
-		rawFlag = true
-	}
-	if c.IsSet("json") {
-		jsonFlag = true
-	}
+	config := c.Parent().String("config")
+	outputFormat := c.String("output")
+	filterFlag := c.String("filter")
 
 	//Raw output
-	if rawFlag {
+	if outputFormat == "raw" {
 		resp, err := getRawMetrics(config)
 		if err != nil {
 			return err
@@ -42,7 +33,7 @@ func Get(c *cli.Context) error {
 
 		fmt.Println(resp)
 		return nil
-	} else if jsonFlag {
+	} else if outputFormat == "json" {
 		metricFamilies, err := getMetrics(config)
 		if err != nil {
 			return err
@@ -63,6 +54,7 @@ func Get(c *cli.Context) error {
 			}
 		}
 	} else {
+		//TODO: table format
 		//TODO: default formatted output
 		metricFamilies, err := getMetrics(config)
 		if err != nil {

@@ -19,15 +19,12 @@ import (
 )
 
 func main() {
-	var config string
-	var filterFlag string
 
 	//TODO: expand on filter flag - possible regex, state values, by namespace, by label
 	//TODO: maybe match kubectl command pattern: get, describe, watch
 	//      ideas for metric views - rolling update state; deployment state, hpa's, jobs, etc
 	//TODO: add output format options (raw, json, table)
 	//TODO: add reasonable defaults with no command or flags - maybe a 'top' display
-	//TODO: list of metrics with help text
 
 	app := cli.NewApp()
 	app.Name = "kubestate"
@@ -39,8 +36,7 @@ func main() {
 		cli.StringFlag{
 			Name:        "config, c",
 			Value:       "~/.kube/config",
-			Usage:       "path to kubeconfig",
-			Destination: &config,
+			Usage:       "path to config",
 		},
 	}
 
@@ -49,21 +45,16 @@ func main() {
 			Name: "get",
 			Usage: "Get metrics",
 			Flags: []cli.Flag{
-				cli.BoolFlag{
-					Name:        "json, j",
-					Usage:       "Show JSON format",
-				},
-				//TODO: should raw be a command?
-				cli.BoolFlag{
-					Name:        "raw, r",
-					Usage:       "Show raw response data format",
+				cli.StringFlag{
+					Name:        "output, o",
+					Value:       "json",
+					Usage:       "Output format. Valid formats: json, raw, table",
 				},
 				cli.StringFlag{
 					//TODO: should filter be a subcommand?
 					Name:        "filter, f",
 					Value:       "*",
 					Usage:       "Metric filter family to show",
-					Destination: &filterFlag,
 				},
 			},
 			Action: cmd.Get,
