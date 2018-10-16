@@ -28,19 +28,19 @@ USAGE:
    kubestate [global options] command [command options] [arguments...]
 
 VERSION:
-   0.0.0
+   0.0.1
 
 COMMANDS:
+     get      Get metrics
+     top      Show top resource consumption by deployment
+     watch    Watch metric
+     list     List metric families
      help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --config value, -c value  path to kubeconfig (default: "~/.kube/config")
-   --raw, -r                 Show raw response data format
-   --json, -j                Show JSON format
-   --filter value, -f value  Metric filter to show (default: "*")
+   --config value, -c value  path to config (default: "~/.kube/config")
    --help, -h                show help
    --version, -v             print the version
-   
 ```
 
 ####Notes
