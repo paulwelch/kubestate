@@ -15,7 +15,60 @@ import (
 	"github.com/urfave/cli"
 )
 
+//TOP Ideas
+// top rollup by: Deployment / RC/RS / Service / Pod, Job/CronJob, Resource Quotas, HPA (network??), Storage (may not have right metrics for it)
+
+
 func Top(c *cli.Context) error {
-	fmt.Println("Implement Top Here")
+
+	config := c.Parent().Parent().String("config")
+
+	metricFamilies, err := getMetrics(config)
+	if err != nil {
+		return err
+	}
+
+	switch c.Command.Name {
+	case "deployments":
+	case "pods":
+		//map key: namespace -> pod -> container
+		type key struct {
+			namespace, pod, container, resource string
+		}
+		resources := make(map[key]float64)
+
+		for i := 0; i < len(metricFamilies); i++ {
+
+			var ns, po, co, re string
+
+			if *metricFamilies[i].Name == "kube_pod_container_resource_requests" {
+				for _, f := range metricFamilies[i].Metric {
+
+					for _, l := range f.Label {
+						switch *l.Name {
+						case "namespace":
+							ns = *l.Value
+						case "pod":
+							po = *l.Value
+						case "container":
+							co = *l.Value
+						case "resource":
+							re = *l.Value
+						}
+					}
+					resources[key{ns, po, co, re}] += *f.Gauge.Value
+				}
+
+			}
+
+		}
+
+		fmt.Printf("%s\t%s\t%s\t%s\t%s\n", "Namespace", "Pod", "Container", "CPU")
+		for k, v := range resources {
+			fmt.Printf("%s\t%s\t%s\t%s\t%f\n", k.namespace, k.pod, k.container, k.resource, v)
+		}
+
+	}
+
 	return nil
 }

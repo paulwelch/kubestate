@@ -25,6 +25,7 @@ func main() {
 	//      ideas for metric views - rolling update state; deployment state, hpa's, jobs, etc
 	//TODO: add output format options (raw, json, table)
 	//TODO: add reasonable defaults with no command or flags - maybe a 'top' display
+	//TODO: should we add a namespace flag and --all-namespaces like kubectl?
 
 	app := cli.NewApp()
 	app.Name = "kubestate"
@@ -62,7 +63,20 @@ func main() {
 		cli.Command{
 			Name: "top",
 			Usage: "Show top resource consumption by deployment",
-			Action: cmd.Top,
+			Subcommands: []cli.Command{
+				cli.Command{
+					Name: "pods",
+					Aliases: []string{"po"},
+					Usage: "Get top resource usage for pods",
+					Action: cmd.Top,
+				},
+				cli.Command{
+					Name: "deployments",
+					Aliases: []string{"deploy"},
+					Usage: "Get top resource usage for deployments",
+					Action: cmd.Top,
+				},
+			},
 		},
 		cli.Command{
 			Name: "watch",
