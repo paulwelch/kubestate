@@ -37,12 +37,7 @@ func Top(c *cli.Context) error {
 		//TODO: deployment pods - desired (kube_deployment_spec_replicas), available(kube_deployment_status_replicas_available), unavailable(kube_deployment_status_replicas_unavailable)
 	case "pods":
 		//TODO: should we show pods that have no request or limit set?
-		//map key: namespace -> pod -> container
-		type key struct {
-			namespace, pod, container, resource string
-		}
-		resources := make(map[key]float64)
-		limits := make(map[key]float64)
+
 		type rowKey struct {
 			namespace, pod, container string
 		}
@@ -77,14 +72,12 @@ func Top(c *cli.Context) error {
 					}
 
 					if *metricFamilies[i].Name == "kube_pod_container_resource_requests" {
-						resources[key{ns, po, co, re}] += *f.Gauge.Value
 						if re == "cpu" {
 							table[rowKey{ns, po, co}].cpuRequest += *f.Gauge.Value
 						} else if re == "memory" {
 							table[rowKey{ns, po, co}].memoryRequest += *f.Gauge.Value
 						}
 					} else if *metricFamilies[i].Name == "kube_pod_container_resource_limits" {
-						limits[key{ns, po, co, re}] += *f.Gauge.Value
 						if re == "cpu" {
 							table[rowKey{ns, po, co}].cpuLimit += *f.Gauge.Value
 						} else if re == "memory" {
@@ -97,8 +90,8 @@ func Top(c *cli.Context) error {
 
 		}
 
+		//TODO: Sort highest to lowest resources
 		w := new(tabwriter.Writer)
-
 		w.Init(os.Stdout, 10, 10, 0, '\t', 0)
 
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "Namespace", "Pod", "Container", "CPU (Requested / Limit)", "Memory  (Requested / Limit)")
