@@ -13,8 +13,11 @@ package cmd
 import (
 	"fmt"
 	"github.com/urfave/cli"
+	"os"
+	"text/tabwriter"
 )
 
+//TODO: is there a more accurate command name than top for this?
 //TOP Ideas
 // top rollup by: Deployment / RC/RS / Service / Pod, Job/CronJob, Resource Quotas, HPA (network??), Storage (may not have right metrics for it)
 
@@ -28,20 +31,32 @@ func Top(c *cli.Context) error {
 		return err
 	}
 
+	//TODO: do we aggregate by node?
 	switch c.Command.Name {
 	case "deployments":
+		//TODO: deployment pods - desired (kube_deployment_spec_replicas), available(kube_deployment_status_replicas_available), unavailable(kube_deployment_status_replicas_unavailable)
 	case "pods":
+		//TODO: should we show pods that have no request or limit set?
 		//map key: namespace -> pod -> container
 		type key struct {
 			namespace, pod, container, resource string
 		}
 		resources := make(map[key]float64)
+		limits := make(map[key]float64)
+		type rowKey struct {
+			namespace, pod, container string
+		}
+		type row struct {
+			cpuRequest, cpuLimit, memoryRequest, memoryLimit float64
+		}
+		table := make(map[rowKey]*row)
 
 		for i := 0; i < len(metricFamilies); i++ {
 
 			var ns, po, co, re string
 
-			if *metricFamilies[i].Name == "kube_pod_container_resource_requests" {
+			if *metricFamilies[i].Name == "kube_pod_container_resource_requests" ||
+				*metricFamilies[i].Name == "kube_pod_container_resource_limits" {
 				for _, f := range metricFamilies[i].Metric {
 
 					for _, l := range f.Label {
@@ -56,17 +71,43 @@ func Top(c *cli.Context) error {
 							re = *l.Value
 						}
 					}
-					resources[key{ns, po, co, re}] += *f.Gauge.Value
+
+					if table[rowKey{ns, po, co}] == nil {
+						table[rowKey{ns, po, co}] = &row{}
+					}
+
+					if *metricFamilies[i].Name == "kube_pod_container_resource_requests" {
+						resources[key{ns, po, co, re}] += *f.Gauge.Value
+						if re == "cpu" {
+							table[rowKey{ns, po, co}].cpuRequest += *f.Gauge.Value
+						} else if re == "memory" {
+							table[rowKey{ns, po, co}].memoryRequest += *f.Gauge.Value
+						}
+					} else if *metricFamilies[i].Name == "kube_pod_container_resource_limits" {
+						limits[key{ns, po, co, re}] += *f.Gauge.Value
+						if re == "cpu" {
+							table[rowKey{ns, po, co}].cpuLimit += *f.Gauge.Value
+						} else if re == "memory" {
+							table[rowKey{ns, po, co}].memoryLimit += *f.Gauge.Value
+						}
+					}
 				}
 
 			}
 
 		}
 
-		fmt.Printf("%s\t%s\t%s\t%s\t%s\n", "Namespace", "Pod", "Container", "CPU")
-		for k, v := range resources {
-			fmt.Printf("%s\t%s\t%s\t%s\t%f\n", k.namespace, k.pod, k.container, k.resource, v)
+		w := new(tabwriter.Writer)
+
+		w.Init(os.Stdout, 10, 10, 0, '\t', 0)
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "Namespace", "Pod", "Container", "CPU (Requested / Limit)", "Memory  (Requested / Limit)")
+
+		for k, v := range table {
+			fmt.Fprintf(w, "%s\t%s\t%s\t(%.2f / %.2f)\t(%.0f Mi / %.0f Mi)\n", k.namespace, k.pod, k.container, v.cpuRequest, v.cpuLimit, (v.memoryRequest/1048576), (v.memoryLimit/1048576))
 		}
+
+		w.Flush()
 
 	}
 
