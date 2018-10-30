@@ -92,7 +92,7 @@ func Top(c *cli.Context) error {
 
 		//TODO: Sort highest to lowest resources
 		w := new(tabwriter.Writer)
-		w.Init(os.Stdout, 10, 10, 0, '\t', 0)
+		w.Init(os.Stdout, 10, 1, 1, ' ', 0)
 
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "Namespace", "Pod", "Container", "CPU (Requested / Limit)", "Memory  (Requested / Limit)")
 
