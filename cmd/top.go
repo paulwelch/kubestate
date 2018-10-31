@@ -78,8 +78,6 @@ func Top(c *cli.Context) error {
 	case "deployments":
 		//TODO: deployment pods - desired (kube_deployment_spec_replicas), available(kube_deployment_status_replicas_available), unavailable(kube_deployment_status_replicas_unavailable)
 	case "pods":
-		//TODO: should we show pods that have no request or limit set?
-
 		for i := 0; i < len(metricFamilies); i++ {
 
 			var ns, po, co, re, n string
@@ -156,12 +154,12 @@ func Top(c *cli.Context) error {
 
 
 		w := new(tabwriter.Writer)
-		w.Init(os.Stdout, 8, 1, 1, ' ', 0)
+		w.Init(os.Stdout, 4, 1, 1, ' ', 0)
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "Namespace", "Pod", "Container", "CPU (Req / Lim)", "Memory  (Req / Lim)")
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", "Namespace", "Pod", "Container", "CPU (Req / Lim)", "Memory  (Req / Lim)", "Node", "Load")
 
 		for _, v := range s {
-			fmt.Fprintf(w, "%s\t%s\t%s\t(%.0fm / %.0fm)\t(%.0fMi / %.0fMi)\n", v.key.namespace, v.key.pod, v.key.container, table[v.key].cpuRequest*1000, table[v.key].cpuLimit*1000, (table[v.key].memoryRequest/1048576), (table[v.key].memoryLimit/1048576))
+			fmt.Fprintf(w, "%s\t%s\t%s\t(%.0fm / %.0fm)\t(%.0fMi / %.0fMi)\t%s\t%.0f%%\n", v.key.namespace, v.key.pod, v.key.container, table[v.key].cpuRequest*1000, table[v.key].cpuLimit*1000, (table[v.key].memoryRequest/1048576), (table[v.key].memoryLimit/1048576), table[v.key].node, v.value*100)
 		}
 
 		w.Flush()
