@@ -161,7 +161,7 @@ func Top(c *cli.Context) error {
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "Namespace", "Pod", "Container", "CPU (Req / Lim)", "Memory  (Req / Lim)")
 
 		for _, v := range s {
-			fmt.Fprintf(w, "%s\t%s\t%s\t(%.2f / %.2f)\t(%.0f Mi / %.0f Mi)\n", v.key.namespace, v.key.pod, v.key.container, table[v.key].cpuRequest, table[v.key].cpuLimit, (table[v.key].memoryRequest/1048576), (table[v.key].memoryLimit/1048576))
+			fmt.Fprintf(w, "%s\t%s\t%s\t(%.0fm / %.0fm)\t(%.0fMi / %.0fMi)\n", v.key.namespace, v.key.pod, v.key.container, table[v.key].cpuRequest*1000, table[v.key].cpuLimit*1000, (table[v.key].memoryRequest/1048576), (table[v.key].memoryLimit/1048576))
 		}
 
 		w.Flush()
