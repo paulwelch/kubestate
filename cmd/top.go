@@ -27,6 +27,7 @@ type rowKey struct {
 }
 
 type row struct {
+	node string
 	cpuRequest, cpuLimit, memoryRequest, memoryLimit float64
 }
 
@@ -84,7 +85,11 @@ func Top(c *cli.Context) error {
 			var ns, po, co, re, n string
 
 			if *metricFamilies[i].Name == "kube_pod_container_resource_requests" ||
-				*metricFamilies[i].Name == "kube_pod_container_resource_limits" {
+				*metricFamilies[i].Name == "kube_pod_container_resource_limits" ||
+				*metricFamilies[i].Name == "kube_node_status_capacity_cpu_cores" ||
+				*metricFamilies[i].Name == "kube_node_status_capacity_memory_bytes" ||
+				*metricFamilies[i].Name == "kube_node_status_allocatable_memory_bytes" ||
+				*metricFamilies[i].Name == "kube_node_status_allocatable_cpu_cores" {
 				for _, f := range metricFamilies[i].Metric {
 
 					for _, l := range f.Label {
@@ -102,8 +107,15 @@ func Top(c *cli.Context) error {
 						}
 					}
 
-					if table[rowKey{ns, po, co}] == nil {
-						table[rowKey{ns, po, co}] = &row{}
+					if n != "" && nodes[n] == nil {
+						nodes[n] = &node{}
+					}
+
+					if ns != "" && po != "" && co != "" {
+						if table[rowKey{ns, po, co}] == nil {
+							table[rowKey{ns, po, co}] = &row{}
+							table[rowKey{ns, po, co}].node = n
+						}
 					}
 
 					switch *metricFamilies[i].Name  {
@@ -136,16 +148,17 @@ func Top(c *cli.Context) error {
 
 		s := make(sortedKeys, 0, len(table))
 		for k, v := range table {
-			//TODO: i think a good sort might be equally weighted cpu and memory usage as percentage
-			s = append(s, &sortKey{k, v.memoryRequest})
+			//load factor is equally weighted average of cpu and memory requested as percentage of allocatable
+			load := ((v.memoryRequest / nodes[v.node].memoryAllocatable) + (v.cpuRequest / nodes[v.node].cpuAllocatable)) / 2
+			s = append(s, &sortKey{k, load})
 		}
 		sort.Sort(sort.Reverse(s))
 
 
 		w := new(tabwriter.Writer)
-		w.Init(os.Stdout, 10, 1, 1, ' ', 0)
+		w.Init(os.Stdout, 8, 1, 1, ' ', 0)
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "Namespace", "Pod", "Container", "CPU (Requested / Limit)", "Memory  (Requested / Limit)")
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "Namespace", "Pod", "Container", "CPU (Req / Lim)", "Memory  (Req / Lim)")
 
 		for _, v := range s {
 			fmt.Fprintf(w, "%s\t%s\t%s\t(%.2f / %.2f)\t(%.0f Mi / %.0f Mi)\n", v.key.namespace, v.key.pod, v.key.container, table[v.key].cpuRequest, table[v.key].cpuLimit, (table[v.key].memoryRequest/1048576), (table[v.key].memoryLimit/1048576))
