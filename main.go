@@ -44,7 +44,7 @@ func main() {
 	app.Commands = []cli.Command{
 		cli.Command{
 			Name: "get",
-			Usage: "Get metrics",
+			Usage: "Get metric",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "output, o",

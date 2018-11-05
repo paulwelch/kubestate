@@ -8,36 +8,23 @@ import (
 	"text/tabwriter"
 )
 
-type rowKey struct {
-	namespace, pod, container string
-}
-
-type row struct {
-	node                                             string
-	cpuRequest, cpuLimit, memoryRequest, memoryLimit float64
-}
-
-type node struct {
-	cpuCapacity, cpuAllocatable, memoryCapacity, memoryAllocatable float64
-}
-
-type sortKey struct {
-	key   rowKey
+type podSortKey struct {
+	key   podKey
 	value float64
 }
 
-type sortedKeys []*sortKey
+type sortedPodKeys []*podSortKey
 
 // sort.Interface implementation
-func (s sortedKeys) Swap(i, j int) {
+func (s sortedPodKeys) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
-func (s sortedKeys) Len() int {
+func (s sortedPodKeys) Len() int {
 	return len(s)
 }
 
-func (s sortedKeys) Less(i, j int) bool {
+func (s sortedPodKeys) Less(i, j int) bool {
 
 	if s[i].value < s[j].value {
 		return true
@@ -46,7 +33,7 @@ func (s sortedKeys) Less(i, j int) bool {
 }
 
 func topPods(metricFamilies []dto.MetricFamily) {
-	table := make(map[rowKey]*row)
+	pods := make(map[podKey]*pod)
 	nodes := make(map[string]*node)
 
 	for i := 0; i < len(metricFamilies); i++ {
@@ -81,24 +68,24 @@ func topPods(metricFamilies []dto.MetricFamily) {
 				}
 
 				if ns != "" && po != "" && co != "" {
-					if table[rowKey{ns, po, co}] == nil {
-						table[rowKey{ns, po, co}] = &row{}
-						table[rowKey{ns, po, co}].node = n
+					if pods[podKey{ns, po, co}] == nil {
+						pods[podKey{ns, po, co}] = &pod{}
+						pods[podKey{ns, po, co}].node = n
 					}
 				}
 
 				switch *metricFamilies[i].Name {
 				case "kube_pod_container_resource_requests":
 					if re == "cpu" {
-						table[rowKey{ns, po, co}].cpuRequest += *f.Gauge.Value
+						pods[podKey{ns, po, co}].cpuRequest += *f.Gauge.Value
 					} else if re == "memory" {
-						table[rowKey{ns, po, co}].memoryRequest += *f.Gauge.Value
+						pods[podKey{ns, po, co}].memoryRequest += *f.Gauge.Value
 					}
 				case "kube_pod_container_resource_limits":
 					if re == "cpu" {
-						table[rowKey{ns, po, co}].cpuLimit += *f.Gauge.Value
+						pods[podKey{ns, po, co}].cpuLimit += *f.Gauge.Value
 					} else if re == "memory" {
-						table[rowKey{ns, po, co}].memoryLimit += *f.Gauge.Value
+						pods[podKey{ns, po, co}].memoryLimit += *f.Gauge.Value
 					}
 				case "kube_node_status_capacity_memory_bytes":
 					nodes[n].memoryCapacity = *f.Gauge.Value
@@ -113,11 +100,11 @@ func topPods(metricFamilies []dto.MetricFamily) {
 		}
 	}
 
-	s := make(sortedKeys, 0, len(table))
-	for k, v := range table {
+	s := make(sortedPodKeys, 0, len(pods))
+	for k, v := range pods {
 		//load factor is equally weighted average of cpu and memory requested as percentage of allocatable
 		load := ((v.memoryRequest / nodes[v.node].memoryAllocatable) + (v.cpuRequest / nodes[v.node].cpuAllocatable)) / 2
-		s = append(s, &sortKey{k, load})
+		s = append(s, &podSortKey{k, load})
 	}
 	sort.Sort(sort.Reverse(s))
 
@@ -127,7 +114,7 @@ func topPods(metricFamilies []dto.MetricFamily) {
 	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", "Namespace", "Pod", "Container", "CPU (Req / Lim)", "Memory  (Req / Lim)", "Node", "Load")
 
 	for _, v := range s {
-		fmt.Fprintf(w, "%s\t%s\t%s\t(%.0fm / %.0fm)\t(%.0fMi / %.0fMi)\t%s\t%.0f%%\n", v.key.namespace, v.key.pod, v.key.container, table[v.key].cpuRequest*1000, table[v.key].cpuLimit*1000, (table[v.key].memoryRequest / 1048576), (table[v.key].memoryLimit / 1048576), table[v.key].node, v.value*100)
+		fmt.Fprintf(w, "%s\t%s\t%s\t(%.0fm / %.0fm)\t(%.0fMi / %.0fMi)\t%s\t%.0f%%\n", v.key.namespace, v.key.pod, v.key.container, pods[v.key].cpuRequest*1000, pods[v.key].cpuLimit*1000, (pods[v.key].memoryRequest / 1048576), (pods[v.key].memoryLimit / 1048576), pods[v.key].node, v.value*100)
 	}
 
 	w.Flush()

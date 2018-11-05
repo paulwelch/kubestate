@@ -14,7 +14,20 @@ import (
 	"github.com/urfave/cli"
 )
 
-// other top rollup ideas: Node, RC/RS / Service, Job/CronJob, Resource Quotas, HPA (network??), Storage (may not have right metrics for it)
+// other top rollup ideas: RC/RS / Service, Job/CronJob, Resource Quotas, HPA (network??), Storage (may not have right metrics for it)
+
+type podKey struct {
+	namespace, pod, container string
+}
+
+type pod struct {
+	node                                             string
+	cpuRequest, cpuLimit, memoryRequest, memoryLimit float64
+}
+
+type node struct {
+	cpuCapacity, cpuAllocatable, memoryCapacity, memoryAllocatable float64
+}
 
 func Top(c *cli.Context) error {
 
@@ -28,9 +41,10 @@ func Top(c *cli.Context) error {
 	switch c.Command.Name {
 	case "deployments":
 		topDeployments(metricFamilies)
-
 	case "pods":
 		topPods(metricFamilies)
+	case "nodes":
+		topNodes(metricFamilies)
 	}
 
 	return nil
