@@ -76,6 +76,12 @@ func main() {
 					Usage: "Get top resource usage for deployments",
 					Action: cmd.Top,
 				},
+				cli.Command{
+					Name: "nodes",
+					Aliases: []string{"nodes"},
+					Usage: "Get top resource usage for nodes",
+					Action: cmd.Top,
+				},
 			},
 		},
 		cli.Command{
