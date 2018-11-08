@@ -23,9 +23,7 @@ func main() {
 	//TODO: expand on filter flag - possible regex, state values, by namespace, by label
 	//TODO: maybe match kubectl command pattern: get, describe, watch
 	//      ideas for metric views - rolling update state; deployment state, hpa's, jobs, etc
-	//TODO: add output format options (raw, json, table)
 	//TODO: add reasonable defaults with no command or flags - maybe a 'top' display
-	//TODO: should we add a namespace flag and --all-namespaces like kubectl?
 
 	app := cli.NewApp()
 	app.Name = "kubestate"
@@ -38,6 +36,11 @@ func main() {
 			Name:        "config, c",
 			Value:       "~/.kube/config",
 			Usage:       "path to config",
+		},
+		cli.StringFlag{
+			Name:        "namespace, n",
+			Value:       "*",
+			Usage:       "namespace to show (default is all namespaces)",
 		},
 	}
 

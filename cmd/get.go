@@ -25,6 +25,7 @@ func Get(c *cli.Context) error {
 	config := c.Parent().String("config")
 	outputFormat := c.String("output")
 	filterFlag := c.String("filter")
+	namespaceFlag := c.Parent().String("namespace")
 
 	//Raw output
 	if outputFormat == "raw" {
@@ -33,14 +34,24 @@ func Get(c *cli.Context) error {
 			return err
 		}
 
-		if filterFlag == "*" {
+		if filterFlag == "*" && namespaceFlag == "*"{
 			fmt.Println(resp)
 		} else {
 			scanner := bufio.NewScanner(strings.NewReader(resp))
 			for scanner.Scan() {
 				l := scanner.Text()
-				if string(l[0]) != "#" && strings.Split(string(l), "{")[0] == filterFlag {
-					fmt.Println(l)
+				if string(l[0]) != "#" {
+					if namespaceFlag == "*" {
+						fmt.Println(l)
+					} else if filterFlag == "*" || strings.Split(string(l), "{")[0] == filterFlag {
+						items := strings.Split(strings.Split(strings.Split(string(l), "{")[1], "}")[0], ",")
+						for _, item := range items {
+							x := strings.Split(item, "=")
+							if x[0] == "namespace" && x[1][1:len(x[1])-1] == namespaceFlag {
+								fmt.Println(l)
+							}
+						}
+					}
 				}
 			}
 		}
