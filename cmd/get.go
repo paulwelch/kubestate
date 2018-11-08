@@ -63,19 +63,38 @@ func Get(c *cli.Context) error {
 			return err
 		}
 
+		matches := make(map[int]*dto.MetricFamily)
+		cnt := 0
 		for i := 0; i < len(metricFamilies); i++ {
 			if filterFlag == "*" || *metricFamilies[i].Name == filterFlag {
-				if i == 0 {
-					fmt.Print("[")
+				var found = false
+				if namespaceFlag != "*" {
+					for _, m := range metricFamilies[i].Metric {
+						for _, l := range m.Label {
+							if *l.Name == "namespace" {
+								found = true
+							}
+						}
+					}
 				}
-				s, _ := jsoniter.MarshalToString(metricFamilies[i])
-				fmt.Print(s)
-				if i < (len(metricFamilies) - 1) {
-					fmt.Print(",")
-				} else {
-					fmt.Println("]")
+				if namespaceFlag == "*" || found {
+					matches[cnt] = &metricFamilies[i]
+					cnt++
 				}
 			}
+		}
+		if cnt > 1 {
+			fmt.Print("[")
+		}
+		for i := 0; i < cnt; i++ {
+			s, _ := jsoniter.MarshalToString(matches[i])
+			fmt.Print(s)
+			if cnt > 1 && i < cnt-1 {
+				fmt.Print(",")
+			}
+		}
+		if cnt > 1 {
+			fmt.Println("]")
 		}
 	} else {
 		//TODO: table format
