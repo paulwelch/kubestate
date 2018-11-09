@@ -50,7 +50,7 @@ func (s sortedDeployKeys) Less(i, j int) bool {
 	return false
 }
 
-func topDeployments(metricFamilies []dto.MetricFamily) {
+func topDeployments(metricFamilies []dto.MetricFamily, namespaceFlag string) {
 	//TODO: add rolling update metrics
 	table := make(map[deployKey]*deploy)
 
@@ -72,17 +72,19 @@ func topDeployments(metricFamilies []dto.MetricFamily) {
 					}
 				}
 
-				if table[deployKey{ns, d}] == nil {
-					table[deployKey{ns, d}] = &deploy{}
-				}
+				if namespaceFlag == "*" || namespaceFlag == ns {
+					if table[deployKey{ns, d}] == nil {
+						table[deployKey{ns, d}] = &deploy{}
+					}
 
-				switch *metricFamilies[i].Name {
-				case "kube_deployment_spec_replicas":
-					table[deployKey{ns, d}].requested += *f.Gauge.Value
-				case "kube_deployment_status_replicas_available":
-					table[deployKey{ns, d}].available += *f.Gauge.Value
-				case "kube_deployment_status_replicas_unavailable":
-					table[deployKey{ns, d}].unavailable += *f.Gauge.Value
+					switch *metricFamilies[i].Name {
+					case "kube_deployment_spec_replicas":
+						table[deployKey{ns, d}].requested += *f.Gauge.Value
+					case "kube_deployment_status_replicas_available":
+						table[deployKey{ns, d}].available += *f.Gauge.Value
+					case "kube_deployment_status_replicas_unavailable":
+						table[deployKey{ns, d}].unavailable += *f.Gauge.Value
+					}
 				}
 			}
 		}

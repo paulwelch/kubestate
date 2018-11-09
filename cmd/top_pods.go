@@ -42,7 +42,7 @@ func (s sortedPodKeys) Less(i, j int) bool {
 	return false
 }
 
-func topPods(metricFamilies []dto.MetricFamily) {
+func topPods(metricFamilies []dto.MetricFamily, namespaceFlag string) {
 	pods := make(map[podKey]*pod)
 	nodes := make(map[string]*node)
 
@@ -73,38 +73,40 @@ func topPods(metricFamilies []dto.MetricFamily) {
 					}
 				}
 
-				if n != "" && nodes[n] == nil {
-					nodes[n] = &node{}
-				}
+				if namespaceFlag == "*" || namespaceFlag == ns {
+					if n != "" && nodes[n] == nil {
+						nodes[n] = &node{}
+					}
 
-				if ns != "" && po != "" && co != "" {
-					if pods[podKey{ns, po, co}] == nil {
-						pods[podKey{ns, po, co}] = &pod{}
-						pods[podKey{ns, po, co}].node = n
+					if ns != "" && po != "" && co != "" {
+						if pods[podKey{ns, po, co}] == nil {
+							pods[podKey{ns, po, co}] = &pod{}
+							pods[podKey{ns, po, co}].node = n
+						}
 					}
-				}
 
-				switch *metricFamilies[i].Name {
-				case "kube_pod_container_resource_requests":
-					if re == "cpu" {
-						pods[podKey{ns, po, co}].cpuRequest += *f.Gauge.Value
-					} else if re == "memory" {
-						pods[podKey{ns, po, co}].memoryRequest += *f.Gauge.Value
+					switch *metricFamilies[i].Name {
+					case "kube_pod_container_resource_requests":
+						if re == "cpu" {
+							pods[podKey{ns, po, co}].cpuRequest += *f.Gauge.Value
+						} else if re == "memory" {
+							pods[podKey{ns, po, co}].memoryRequest += *f.Gauge.Value
+						}
+					case "kube_pod_container_resource_limits":
+						if re == "cpu" {
+							pods[podKey{ns, po, co}].cpuLimit += *f.Gauge.Value
+						} else if re == "memory" {
+							pods[podKey{ns, po, co}].memoryLimit += *f.Gauge.Value
+						}
+					case "kube_node_status_capacity_memory_bytes":
+						nodes[n].memoryCapacity = *f.Gauge.Value
+					case "kube_node_status_capacity_cpu_cores":
+						nodes[n].cpuCapacity = *f.Gauge.Value
+					case "kube_node_status_allocatable_memory_bytes":
+						nodes[n].memoryAllocatable = *f.Gauge.Value
+					case "kube_node_status_allocatable_cpu_cores":
+						nodes[n].cpuAllocatable = *f.Gauge.Value
 					}
-				case "kube_pod_container_resource_limits":
-					if re == "cpu" {
-						pods[podKey{ns, po, co}].cpuLimit += *f.Gauge.Value
-					} else if re == "memory" {
-						pods[podKey{ns, po, co}].memoryLimit += *f.Gauge.Value
-					}
-				case "kube_node_status_capacity_memory_bytes":
-					nodes[n].memoryCapacity = *f.Gauge.Value
-				case "kube_node_status_capacity_cpu_cores":
-					nodes[n].cpuCapacity = *f.Gauge.Value
-				case "kube_node_status_allocatable_memory_bytes":
-					nodes[n].memoryAllocatable = *f.Gauge.Value
-				case "kube_node_status_allocatable_cpu_cores":
-					nodes[n].cpuAllocatable = *f.Gauge.Value
 				}
 			}
 		}

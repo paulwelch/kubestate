@@ -42,13 +42,13 @@ func (s sortedNodeKeys) Less(i, j int) bool {
 	return false
 }
 
-func topNodes(metricFamilies []dto.MetricFamily) {
+func topNodes(metricFamilies []dto.MetricFamily, namespaceFlag string) {
 	podAllocated := make(map[string]*pod)
 	nodes := make(map[string]*node)
 
 	for i := 0; i < len(metricFamilies); i++ {
 
-		var re, n string
+		var re, n, ns string
 
 		if *metricFamilies[i].Name == "kube_pod_container_resource_requests" ||
 			*metricFamilies[i].Name == "kube_pod_container_resource_limits" ||
@@ -56,6 +56,7 @@ func topNodes(metricFamilies []dto.MetricFamily) {
 			*metricFamilies[i].Name == "kube_node_status_capacity_memory_bytes" ||
 			*metricFamilies[i].Name == "kube_node_status_allocatable_memory_bytes" ||
 			*metricFamilies[i].Name == "kube_node_status_allocatable_cpu_cores" {
+
 			for _, f := range metricFamilies[i].Metric {
 
 				for _, l := range f.Label {
@@ -64,6 +65,8 @@ func topNodes(metricFamilies []dto.MetricFamily) {
 						re = *l.Value
 					case "node":
 						n = *l.Value
+					case "namespace":
+						ns = *l.Value
 					}
 				}
 
@@ -77,16 +80,20 @@ func topNodes(metricFamilies []dto.MetricFamily) {
 
 				switch *metricFamilies[i].Name {
 				case "kube_pod_container_resource_requests":
-					if re == "cpu" {
-						podAllocated[n].cpuRequest += *f.Gauge.Value
-					} else if re == "memory" {
-						podAllocated[n].memoryRequest += *f.Gauge.Value
+					if namespaceFlag == "*" || namespaceFlag == ns {
+						if re == "cpu" {
+							podAllocated[n].cpuRequest += *f.Gauge.Value
+						} else if re == "memory" {
+							podAllocated[n].memoryRequest += *f.Gauge.Value
+						}
 					}
 				case "kube_pod_container_resource_limits":
-					if re == "cpu" {
-						podAllocated[n].cpuLimit += *f.Gauge.Value
-					} else if re == "memory" {
-						podAllocated[n].memoryLimit += *f.Gauge.Value
+					if namespaceFlag == "*" || namespaceFlag == ns {
+						if re == "cpu" {
+							podAllocated[n].cpuLimit += *f.Gauge.Value
+						} else if re == "memory" {
+							podAllocated[n].memoryLimit += *f.Gauge.Value
+						}
 					}
 				case "kube_node_status_capacity_memory_bytes":
 					nodes[n].memoryCapacity = *f.Gauge.Value

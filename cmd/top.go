@@ -32,6 +32,7 @@ type node struct {
 func Top(c *cli.Context) error {
 
 	config := c.Parent().Parent().String("config")
+	namespaceFlag := c.Parent().Parent().String("namespace")
 
 	metricFamilies, err := getMetrics(config)
 	if err != nil {
@@ -40,11 +41,11 @@ func Top(c *cli.Context) error {
 
 	switch c.Command.Name {
 	case "deployments":
-		topDeployments(metricFamilies)
+		topDeployments(metricFamilies, namespaceFlag)
 	case "pods":
-		topPods(metricFamilies)
+		topPods(metricFamilies, namespaceFlag)
 	case "nodes":
-		topNodes(metricFamilies)
+		topNodes(metricFamilies, namespaceFlag)
 	}
 
 	return nil
