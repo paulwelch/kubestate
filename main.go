@@ -20,10 +20,8 @@ import (
 
 func main() {
 
-	//TODO: expand on filter flag - possible regex, state values, by namespace, by label
-	//TODO: maybe match kubectl command pattern: get, describe, watch
-	//      ideas for metric views - rolling update state; deployment state, hpa's, jobs, etc
-	//TODO: add reasonable defaults with no command or flags - maybe a 'top' display
+	//ideas to expand on filter flag - regex; state values; by label
+	//ideas for metric views - rolling update state; hpa's; jobs
 
 	app := cli.NewApp()
 	app.Name = "kubestate"
@@ -55,7 +53,6 @@ func main() {
 					Usage:       "Output format. Valid formats: json, raw, table",
 				},
 				cli.StringFlag{
-					//TODO: should filter be a subcommand?
 					Name:        "filter, f",
 					Value:       "*",
 					Usage:       "Metric filter family to show",

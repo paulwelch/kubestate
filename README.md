@@ -19,8 +19,6 @@ Tool Requirements and Tested Versions
 ## Running kubestate
 
 ```bash
-kubestate --help
-
 NAME:
    kubestate - Show kubernetes state metrics
 
@@ -31,16 +29,17 @@ VERSION:
    0.0.1
 
 COMMANDS:
-     get      Get metrics
+     get      Get metric
      top      Show top resource consumption by deployment
      watch    Watch metric
      list     List metric families
      help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --config value, -c value  path to config (default: "~/.kube/config")
-   --help, -h                show help
-   --version, -v             print the version
+   --config value, -c value     path to config (default: "~/.kube/config")
+   --namespace value, -n value  namespace to show (default is all namespaces) (default: "*")
+   --help, -h                   show help
+   --version, -v                print the version
 ```
 
 ####Notes
