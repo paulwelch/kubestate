@@ -18,7 +18,7 @@ Tool Requirements and Tested Versions
 
 3. go install
 
-####Notes
+#### Notes
 * Optional add-on API service kube-state-metrics is required.  See https://github.com/kubernetes/kube-state-metrics 
 * By default, kubestate uses kubectl config for cluster connection and authentication. If you can run kubectl commands successfully, then kubestate should also be able to connect to the same cluster.
 
