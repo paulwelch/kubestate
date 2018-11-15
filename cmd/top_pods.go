@@ -73,7 +73,13 @@ func topPods(metricFamilies []dto.MetricFamily, namespaceFlag string) {
 					}
 				}
 
-				if namespaceFlag == "*" || namespaceFlag == ns {
+				//need to parse if kube_node_* - there's no namespace on those metrics
+				//might want to consider splitting into separate loops
+				if namespaceFlag == "*" || namespaceFlag == ns ||
+					*metricFamilies[i].Name == "kube_node_status_capacity_cpu_cores" ||
+					*metricFamilies[i].Name == "kube_node_status_capacity_memory_bytes" ||
+					*metricFamilies[i].Name == "kube_node_status_allocatable_memory_bytes" ||
+					*metricFamilies[i].Name == "kube_node_status_allocatable_cpu_cores" {
 					if n != "" && nodes[n] == nil {
 						nodes[n] = &node{}
 					}
