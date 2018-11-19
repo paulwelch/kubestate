@@ -11,12 +11,6 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# Glide
-glide.lock
-
-# Vendor libs
-vendor
-
 # OSX
 DS_Store
 
