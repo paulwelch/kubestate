@@ -1,14 +1,34 @@
 package: github.com/paulwelch/kubestate
 import:
-- package: k8s.io/client-go
-  version: v6.0.0
-- package: github.com/GoogleCloudPlatform/kubernetes
-  version: v1.13.0-alpha.0
+- package: github.com/gogo/protobuf
+  version: ^1.1.1
+- package: github.com/golang/protobuf
+  version: ^1.2.0
+- package: code.google.com/p/goprotobuf/proto
+  version: ^1.2.0
+  repo: https://github.com/golang/protobuf.git
+  vcs: git
+- package: github.com/json-iterator/go
+  version: ^1.1.5
+- package: github.com/kubicorn/kubicorn
   subpackages:
-  - pkg/api/v1
+  - pkg/local
+- package: github.com/matttproud/golang_protobuf_extensions
+  version: ^1.0.1
+  subpackages:
+  - pbutil
+- package: github.com/prometheus/client_model
+  subpackages:
+  - go
 - package: github.com/urfave/cli
-  version: v1.20.0
-- package: github.com/prometheus/client_model/go
-  version: model-0.0.2
-- package: github.com/matttproud/golang_protobuf_extensions/pbutil
-  version: v1.0.1
+  version: ^1.20.0
+- package: k8s.io/apimachinery
+  subpackages:
+  - pkg/apis/meta/v1
+- package: k8s.io/client-go
+  version: ^9.0.0
+  subpackages:
+  - kubernetes
+  - plugin/pkg/client/auth
+  - rest
+  - tools/clientcmd
