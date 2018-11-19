@@ -8,7 +8,6 @@ The primary use for the kubernetes [kube-state-metrics](https://github.com/kuber
 
 Tool Requirements and Tested Versions
 * go v1.11
-* dep v0.5.0-1
 * glide 0.13.0-dev (required for downstream projects, such as github.com/kubicorn - hopefully will fall off the requirements list at some point)
 * kubectl v1.12.0 (required to run, not necessarily to build)
 
