@@ -96,7 +96,7 @@ wrk3 (250m / 0m / 4000m)    (0Mi / 0Mi / 15877Mi)      3%
 wrk1 (250m / 0m / 4000m)    (0Mi / 0Mi / 15877Mi)      3%
 wrk2 (250m / 0m / 4000m)    (0Mi / 0Mi / 15877Mi)      3%
 ```
-To explore further, you can browse through the full list of Metric Families provided by kube-state-metrics using the kubestate list command.
+To explore further, you can browse through the full list of metrics provided by kube-state-metrics using the kubestate list command.
 ```bash
 ~ » kubestate list
 GAUGE	kube_configmap_created	Unix creation timestamp
@@ -115,9 +115,9 @@ GAUGE	kube_pod_container_resource_requests_memory_bytes	The number of requested 
 .
 .
 ```
-Then, get the Metric Family values for one using the kubestate get command with the filter flag. The jq command is a great way to format the json output to make it easier to read.
+Then, get the metric values for one using the kubestate get command with the metric filter flag. The jq command is a great way to format the json output to make it easier to read.
 ```bash
-~ » kubestate get -f kube_pod_container_resource_requests_memory_bytes | jq
+~ » kubestate get -m kube_pod_container_resource_requests_memory_bytes | jq
 {
   "name": "kube_pod_container_resource_requests_memory_bytes",
   "help": "The number of requested memory bytes by a container.",
