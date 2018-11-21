@@ -17,3 +17,6 @@ DS_Store
 # IDE's
 .idea
 .vscode
+
+# Packaging
+dist
