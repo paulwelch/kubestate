@@ -99,7 +99,7 @@ func topDeployments(metricFamilies []dto.MetricFamily, namespaceFlag string) {
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 4, 1, 1, ' ', 0)
 
-	fmt.Fprintf(w, "%s\t%s\t%s\n", "Namespace", "Deployment", "(Req / Avail / Unavail)")
+	fmt.Fprintf(w, "%s\t%s\t%s\n", "Namespace", "Deployment", "Replicas (Req / Avail / Unavail)")
 
 	for _, v := range s {
 		fmt.Fprintf(w, "%s\t%s\t(%.0f / %.0f / %.0f)\n", v.key.namespace, v.key.deployment, table[v.key].requested, table[v.key].available, table[v.key].unavailable)

@@ -53,9 +53,9 @@ func main() {
 					Usage:       "Output format. Valid formats: json, raw, table",
 				},
 				cli.StringFlag{
-					Name:        "filter, f",
+					Name:        "metric, m",
 					Value:       "*",
-					Usage:       "Metric filter family to show",
+					Usage:       "Metric name to show",
 				},
 			},
 			Action: cmd.Get,
@@ -91,7 +91,7 @@ func main() {
 		},
 		cli.Command{
 			Name: "list",
-			Usage: "List metric families",
+			Usage: "List metrics",
 			Action: cmd.List,
 		},
 	}

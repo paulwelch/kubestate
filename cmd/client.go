@@ -61,7 +61,7 @@ func getMetrics(config string) ([]dto.MetricFamily, error) {
 	}
 	resp, _ := r.Raw()
 
-	//Parse protobuf into MetricFamily array, output family if filter specified
+	//Parse protobuf into MetricFamily array, output family if metric filter specified
 	//Might be faster with parallel go routine to parse, but with higher complexity.
 	//Only ~100 families, so probably not worth it at this time.
 	metricFamilies := make([]dto.MetricFamily, 0)

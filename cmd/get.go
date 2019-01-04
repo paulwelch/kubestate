@@ -24,7 +24,7 @@ func Get(c *cli.Context) error {
 
 	config := c.Parent().String("config")
 	outputFormat := c.String("output")
-	filterFlag := c.String("filter")
+	metricFilterFlag := c.String("metric")
 	namespaceFlag := c.Parent().String("namespace")
 
 	//Raw output
@@ -34,7 +34,7 @@ func Get(c *cli.Context) error {
 			return err
 		}
 
-		if filterFlag == "*" && namespaceFlag == "*"{
+		if metricFilterFlag == "*" && namespaceFlag == "*"{
 			fmt.Println(resp)
 		} else {
 			scanner := bufio.NewScanner(strings.NewReader(resp))
@@ -43,7 +43,7 @@ func Get(c *cli.Context) error {
 				if string(l[0]) != "#" {
 					if namespaceFlag == "*" {
 						fmt.Println(l)
-					} else if filterFlag == "*" || strings.Split(string(l), "{")[0] == filterFlag {
+					} else if metricFilterFlag == "*" || strings.Split(string(l), "{")[0] == metricFilterFlag {
 						items := strings.Split(strings.Split(strings.Split(string(l), "{")[1], "}")[0], ",")
 						for _, item := range items {
 							x := strings.Split(item, "=")
@@ -66,7 +66,7 @@ func Get(c *cli.Context) error {
 		matches := make(map[int]*dto.MetricFamily)
 		cnt := 0
 		for i := 0; i < len(metricFamilies); i++ {
-			if filterFlag == "*" || *metricFamilies[i].Name == filterFlag {
+			if metricFilterFlag == "*" || *metricFamilies[i].Name == metricFilterFlag {
 				var found = false
 				if namespaceFlag != "*" {
 					for _, m := range metricFamilies[i].Metric {
