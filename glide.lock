@@ -1,5 +1,5 @@
 hash: 266036c7dbbac8220c12325fb5a805905f977deed4973a4cca876fd7f1b159b3
-updated: 2018-11-19T11:09:40.761861-08:00
+updated: 2019-07-26T15:51:03.130968-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -7,7 +7,7 @@ imports:
   - compute/metadata
   - internal
 - name: code.google.com/p/goprotobuf
-  version: aa810b61a9c79d51363740d207bb46cf8e620ed5
+  version: 6c65a5562fc06764971b7c5d05c76c75e84bdbf7
   repo: https://github.com/golang/protobuf.git
   vcs: git
   subpackages:
@@ -27,14 +27,14 @@ imports:
 - name: github.com/ghodss/yaml
   version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - name: github.com/gogo/protobuf
-  version: 636bf0302bc95575d69441b25a2603156ffdddf1
+  version: ba06b47c162d49f2af050fb4c75bcbc86a159d5c
   subpackages:
   - proto
   - sortkeys
 - name: github.com/golang/glog
   version: 44145f04b68cf362d9c4df2182967c2275eaefed
 - name: github.com/golang/protobuf
-  version: aa810b61a9c79d51363740d207bb46cf8e620ed5
+  version: 6c65a5562fc06764971b7c5d05c76c75e84bdbf7
   subpackages:
   - proto
   - ptypes
@@ -67,18 +67,18 @@ imports:
 - name: github.com/imdario/mergo
   version: 9316a62528ac99aaecb4e47eadd6dc8aa6533d58
 - name: github.com/json-iterator/go
-  version: 1624edc4454b8682399def8740d46db5e4362ba4
+  version: 27518f6661eba504be5a7a9a9f6d9460d892ade3
 - name: github.com/kris-nova/lolgopher
   version: 313b3abb0d9bb53e3c43230132061a7a9cb100fc
 - name: github.com/kubicorn/kubicorn
-  version: 70f8aeca1062afee0b35e76b20587d5a711b555e
+  version: b24ca3b6ae33c053beeec6ec54c35fb5296aeab1
   subpackages:
   - pkg/local
   - pkg/logger
 - name: github.com/mattn/go-colorable
-  version: efa589957cd060542a26d2dd7832fd6a6c6c3ade
+  version: c52ace132bf44798a21f16fdafaaafbf329519e2
 - name: github.com/mattn/go-isatty
-  version: 3fb116b820352b7f0c281308a4d6250c22d94e27
+  version: da60ac76bf7019a8b005f8dd1ad9d1a0e6434155
 - name: github.com/matttproud/golang_protobuf_extensions
   version: c12348ce28de40eed0136aa2b644d0ee0650e56c
   subpackages:
@@ -106,13 +106,10 @@ imports:
   subpackages:
   - context
   - context/ctxhttp
-  - html
-  - html/atom
   - http2
   - http2/hpack
   - idna
   - lex/httplex
-  - websocket
 - name: golang.org/x/oauth2
   version: a6bd8cefa1811bd24b86f8902872e4e8225f74c4
   subpackages:
@@ -137,7 +134,7 @@ imports:
   subpackages:
   - rate
 - name: google.golang.org/appengine
-  version: 4a4468ece617fc8205e99368fa2200e9d1fad421
+  version: b2f4a3cf3c67576a2ee09e1fe62656a5086ce880
   subpackages:
   - internal
   - internal/app_identity

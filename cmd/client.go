@@ -11,11 +11,13 @@
  package cmd
 
 import (
+	//_ "github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/kubicorn/kubicorn/pkg/local"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	"github.com/urfave/cli"
+	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -23,10 +25,11 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 )
 
 func getRawMetrics(config string) (string, error) {
-	cfg, k8sclient, err := getClient(config)
+	_, k8sclient, svcEndpoint, err := getClient(config)
 	if err != nil {
 		return "", err
 	}
@@ -34,7 +37,7 @@ func getRawMetrics(config string) (string, error) {
 	//get kube-state-metrics raw data and parse
 	var r rest.Result
 
-	r = k8sclient.RESTClient().Get().RequestURI(cfg.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/metrics").Do()
+	r = k8sclient.RESTClient().Get().RequestURI(svcEndpoint + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/metrics").Do()
 	if r.Error() != nil {
 		return "", r.Error()
 	}
@@ -44,7 +47,7 @@ func getRawMetrics(config string) (string, error) {
 }
 
 func getMetrics(config string) ([]dto.MetricFamily, error) {
-	cfg, k8sclient, err := getClient(config)
+	_, k8sclient, svcEndpoint, err := getClient(config)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +58,7 @@ func getMetrics(config string) ([]dto.MetricFamily, error) {
 	//request protobuf using Accept header
 	const acceptHeader= `application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3`
 
-	r = k8sclient.RESTClient().Get().SetHeader("Accept", acceptHeader).RequestURI(cfg.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/metrics").Do()
+	r = k8sclient.RESTClient().Get().SetHeader("Accept", acceptHeader).RequestURI(svcEndpoint + "/proxy/metrics").Do()
 	if r.Error() != nil {
 		return nil, r.Error()
 	}
@@ -80,41 +83,48 @@ func getMetrics(config string) ([]dto.MetricFamily, error) {
 	return metricFamilies, nil
 }
 
-func getClient(config string) (*rest.Config, *kubernetes.Clientset, error) {
+func getClient(config string) (*rest.Config, *kubernetes.Clientset, string, error) {
+
+	var ksmSvc core.Service
+	var svcEndpoint string
 
 	cfg, err := clientcmd.BuildConfigFromFlags("", local.Expand(config))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	k8sclient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	//determine if kube-state-metrics service is available and healthy
 	stateServiceFound := false
-	svcs, err := k8sclient.CoreV1().Services("kube-system").List(v1.ListOptions{})
+	svcs, err := k8sclient.CoreV1().Services("").List(v1.ListOptions{})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	for _, svc := range svcs.Items {
 		if svc.Name == "kube-state-metrics" {
 			stateServiceFound = true
+			ksmSvc = svc
+			break
 		}
 	}
 	if !stateServiceFound {
-		return nil, nil, cli.NewExitError("Error: kube-state-metrics service not found. See https://github.com/kubernetes/kube-state-metrics", 99)
-	}
-	req := k8sclient.RESTClient().Get().RequestURI(cfg.Host + "/api/v1/namespaces/kube-system/services/kube-state-metrics:http-metrics/proxy/healthz")
-	r := req.Do()
-	if r.Error() != nil {
-		return nil, nil, r.Error()
-	}
-	resp, _ := r.Raw()
-	if string(resp) != "ok" {
-		return nil, nil, cli.NewExitError("Error: kube-state-metrics service is not healthy", 98)
+		return nil, nil, "", cli.NewExitError("Error: kube-state-metrics service not found. See https://github.com/kubernetes/kube-state-metrics", 99)
 	}
 
-	return cfg, k8sclient, nil
+	svcEndpoint = cfg.Host + ksmSvc.GetSelfLink() + ":" + ksmSvc.Spec.Ports[0].Name
+	req := k8sclient.CoreV1().RESTClient().Get().RequestURI(svcEndpoint + "/proxy/healthz")
+	r := req.Do()
+	if r.Error() != nil {
+		return nil, nil, "", r.Error()
+	}
+	resp, _ := r.Raw()
+	if strings.ToUpper(string(resp)) != "OK" {
+		return nil, nil, "", cli.NewExitError("Error: kube-state-metrics service is not healthy", 98)
+	}
+
+	return cfg, k8sclient, svcEndpoint, nil
 
 }
