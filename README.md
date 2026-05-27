@@ -34,7 +34,7 @@ USAGE:
    kubestate [global options] command [command options] [arguments...]
 
 VERSION:
-   0.0.1
+   0.0.3
 
 COMMANDS:
      get      Get metric

@@ -22,7 +22,7 @@ func newApp() *cli.App {
 	app := cli.NewApp()
 	app.Name = "kubestate"
 	app.Usage = "Show kubernetes state metrics"
-	app.Version = "0.0.1"
+	app.Version = "0.0.3"
 	app.Compiled = time.Now()
 
 	app.Flags = []cli.Flag{
