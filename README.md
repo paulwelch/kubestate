@@ -227,7 +227,7 @@ Then, get the metric values for one using the kubestate get command with the met
 .
 
 ```
-Or, get the output in raw metric exposition format. The Prometheus project has a good description of metric [exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md).
+Or, get the output in raw metric exposition format. The Prometheus project has a good description of metric [exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md).
 ```bash
 ~ » kubestate get --output raw
 # HELP kube_configmap_created Unix creation timestamp
