@@ -31,3 +31,30 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+
+release:
+  github:
+    owner: paulwelch
+    name: kubestate
+  prerelease: auto
+  mode: replace
+  header: |
+    ## kubestate {{ .Tag }}
+  footer: |
+    **Full Changelog**: https://github.com/paulwelch/kubestate/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+brews:
+  - name: kubestate
+    repository:
+      owner: paulwelch
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/paulwelch/kubestate"
+    description: "Kubernetes state metrics utility"
+    license: "Apache-2.0"
+    commit_author:
+      name: github-actions[bot]
+      email: 41898282+github-actions[bot]@users.noreply.github.com
+    test: |
+      system "#{bin}/kubestate", "--version"
