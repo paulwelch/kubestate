@@ -45,6 +45,7 @@ release:
 
 brews:
   - name: kubestate
+    directory: Formula
     repository:
       owner: paulwelch
       name: homebrew-tap
