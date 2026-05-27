@@ -13,6 +13,7 @@
 
 # OSX
 DS_Store
+.DS_Store
 
 # IDE's
 .idea
@@ -20,3 +21,25 @@ DS_Store
 
 # Packaging
 dist
+
+# Local build artifacts
+/kubestate
+/kubestate.exe
+
+# Coverage profiles
+coverage.out
+*.coverprofile
+
+# Local credentials/secrets
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*kubeconfig
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub

@@ -12,17 +12,13 @@ package main
 
 import (
 	"github.com/paulwelch/kubestate/cmd"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"log"
 	"os"
 	"time"
 )
 
-func main() {
-
-	//ideas to expand on filter flag - regex; state values; by label
-	//ideas for metric views - rolling update state; hpa's; jobs
-
+func newApp() *cli.App {
 	app := cli.NewApp()
 	app.Name = "kubestate"
 	app.Usage = "Show kubernetes state metrics"
@@ -30,71 +26,49 @@ func main() {
 	app.Compiled = time.Now()
 
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:        "config, c",
-			Value:       "~/.kube/config",
-			Usage:       "path to config",
-		},
-		cli.StringFlag{
-			Name:        "namespace, n",
-			Value:       "*",
-			Usage:       "namespace to show (default is all namespaces)",
-		},
+		&cli.StringFlag{Name: "config, c", Value: "~/.kube/config", Usage: "path to config"},
+		&cli.StringFlag{Name: "namespace, n", Value: "*", Usage: "namespace to show (default is all namespaces)"},
+		&cli.StringFlag{Name: "metrics-namespace", Usage: "namespace where kube-state-metrics service is running (auto-discovered if unset)"},
+		&cli.BoolFlag{Name: "insecure-skip-tls-verify", Usage: "skip TLS certificate verification when connecting to Kubernetes API"},
 	}
 
-	app.Commands = []cli.Command{
-		cli.Command{
-			Name: "get",
+	app.Commands = []*cli.Command{
+		{
+			Name:  "get",
 			Usage: "Get metric",
 			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:        "output, o",
-					Value:       "json",
-					Usage:       "Output format. Valid formats: json, raw, table",
-				},
-				cli.StringFlag{
-					Name:        "metric, m",
-					Value:       "*",
-					Usage:       "Metric name to show",
-				},
+				&cli.StringFlag{Name: "output, o", Value: "json", Usage: "Output format. Valid formats: json, raw"},
+				&cli.StringFlag{Name: "metric, m", Value: "*", Usage: "Metric name to show"},
 			},
 			Action: cmd.Get,
 		},
-		cli.Command{
-			Name: "top",
+		{
+			Name:  "top",
 			Usage: "Show top resource consumption by deployment",
-			Subcommands: []cli.Command{
-				cli.Command{
-					Name: "pods",
-					Aliases: []string{"po"},
-					Usage: "Get top resource usage for pods",
-					Action: cmd.Top,
-				},
-				cli.Command{
-					Name: "deployments",
-					Aliases: []string{"deploy"},
-					Usage: "Get top resource usage for deployments",
-					Action: cmd.Top,
-				},
-				cli.Command{
-					Name: "nodes",
-					Aliases: []string{"nodes"},
-					Usage: "Get top resource usage for nodes",
-					Action: cmd.Top,
-				},
+			Subcommands: []*cli.Command{
+				{Name: "pods", Aliases: []string{"po"}, Usage: "Get top resource usage for pods", Action: cmd.Top},
+				{Name: "deployments", Aliases: []string{"deploy"}, Usage: "Get top resource usage for deployments", Action: cmd.Top},
+				{Name: "nodes", Usage: "Get top resource usage for nodes", Action: cmd.Top},
 			},
 		},
-		cli.Command{
-			Name: "watch",
+		{
+			Name:  "watch",
 			Usage: "Watch metric",
+			Flags: []cli.Flag{
+				&cli.StringFlag{Name: "output, o", Value: "json", Usage: "Output format. Valid formats: json, raw"},
+				&cli.StringFlag{Name: "metric, m", Value: "*", Usage: "Metric name to show"},
+				&cli.IntFlag{Name: "interval, i", Value: 10, Usage: "Refresh interval in seconds"},
+			},
 			Action: cmd.Watch,
 		},
-		cli.Command{
-			Name: "list",
-			Usage: "List metrics",
-			Action: cmd.List,
-		},
+		{Name: "list", Usage: "List metrics", Action: cmd.List},
 	}
+
+	return app
+}
+
+func main() {
+	app := newApp()
 
 	err := app.Run(os.Args)
 	if err != nil {

@@ -10,9 +10,7 @@
 
 package cmd
 
-import (
-	"github.com/urfave/cli"
-)
+import "github.com/urfave/cli/v2"
 
 // other top rollup ideas: RC/RS / Service, Job/CronJob, Resource Quotas, HPA (network??), Storage (may not have right metrics for it)
 
@@ -30,15 +28,12 @@ type node struct {
 }
 
 func Top(c *cli.Context) error {
-
-	config := c.Parent().Parent().String("config")
-	namespaceFlag := c.Parent().Parent().String("namespace")
-
-	metricFamilies, err := getMetrics(config)
+	metricFamilies, err := getMetricsFn(c.String("config"), c.String("metrics-namespace"), c.Bool("insecure-skip-tls-verify"))
 	if err != nil {
 		return err
 	}
 
+	namespaceFlag := c.String("namespace")
 	switch c.Command.Name {
 	case "deployments":
 		topDeployments(metricFamilies, namespaceFlag)

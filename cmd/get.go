@@ -8,57 +8,61 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 
- package cmd
+package cmd
 
 import (
 	"bufio"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	dto "github.com/prometheus/client_model/go"
-	"github.com/json-iterator/go"
-	"github.com/urfave/cli"
 	"fmt"
 	"strings"
+
+	"github.com/json-iterator/go"
+	dto "github.com/prometheus/client_model/go"
+	"github.com/urfave/cli/v2"
+)
+
+var (
+	getRawMetricsFn = getRawMetrics
+	getMetricsFn    = getMetrics
+	executeGetFn    = executeGet
 )
 
 func Get(c *cli.Context) error {
+	metricFilter := c.String("metric")
+	if metricFilter == "*" && c.Args().Len() > 0 {
+		metricFilter = c.Args().First()
+	}
 
-	config := c.Parent().String("config")
-	outputFormat := c.String("output")
-	metricFilterFlag := c.String("metric")
-	namespaceFlag := c.Parent().String("namespace")
+	return executeGet(
+		c.String("config"),
+		c.String("output"),
+		metricFilter,
+		c.String("namespace"),
+		c.String("metrics-namespace"),
+		c.Bool("insecure-skip-tls-verify"),
+	)
+}
 
-	//Raw output
+func executeGet(config, outputFormat, metricFilterFlag, namespaceFlag, metricsNamespace string, insecureSkipTLSVerify bool) error {
 	if outputFormat == "raw" {
-		resp, err := getRawMetrics(config)
+		resp, err := getRawMetricsFn(config, metricsNamespace, insecureSkipTLSVerify)
 		if err != nil {
 			return err
 		}
 
-		if metricFilterFlag == "*" && namespaceFlag == "*"{
+		if metricFilterFlag == "*" && namespaceFlag == "*" {
 			fmt.Println(resp)
 		} else {
-			scanner := bufio.NewScanner(strings.NewReader(resp))
-			for scanner.Scan() {
-				l := scanner.Text()
-				if string(l[0]) != "#" {
-					if namespaceFlag == "*" {
-						fmt.Println(l)
-					} else if metricFilterFlag == "*" || strings.Split(string(l), "{")[0] == metricFilterFlag {
-						items := strings.Split(strings.Split(strings.Split(string(l), "{")[1], "}")[0], ",")
-						for _, item := range items {
-							x := strings.Split(item, "=")
-							if x[0] == "namespace" && x[1][1:len(x[1])-1] == namespaceFlag {
-								fmt.Println(l)
-							}
-						}
-					}
-				}
+			filtered := filterRawMetrics(resp, metricFilterFlag, namespaceFlag)
+			if filtered != "" {
+				fmt.Print(filtered)
 			}
 		}
 
 		return nil
-	} else if outputFormat == "json" {
-		metricFamilies, err := getMetrics(config)
+	}
+
+	if outputFormat == "json" {
+		metricFamilies, err := getMetricsFn(config, metricsNamespace, insecureSkipTLSVerify)
 		if err != nil {
 			return err
 		}
@@ -66,19 +70,19 @@ func Get(c *cli.Context) error {
 		matches := make(map[int]*dto.MetricFamily)
 		cnt := 0
 		for i := 0; i < len(metricFamilies); i++ {
-			if metricFilterFlag == "*" || *metricFamilies[i].Name == metricFilterFlag {
-				var found = false
+			if metricFilterFlag == "*" || metricFamilies[i].GetName() == metricFilterFlag {
+				var found bool
 				if namespaceFlag != "*" {
 					for _, m := range metricFamilies[i].Metric {
 						for _, l := range m.Label {
-							if *l.Name == "namespace" {
+							if l.GetName() == "namespace" {
 								found = true
 							}
 						}
 					}
 				}
 				if namespaceFlag == "*" || found {
-					matches[cnt] = &metricFamilies[i]
+					matches[cnt] = metricFamilies[i]
 					cnt++
 				}
 			}
@@ -96,45 +100,65 @@ func Get(c *cli.Context) error {
 		if cnt > 1 {
 			fmt.Println("]")
 		}
-	} else {
-		//TODO: table format
-		//TODO: default formatted output
-		metricFamilies, err := getMetrics(config)
-		if err != nil {
-			return err
-		}
+		return nil
+	}
 
-		for i := 0; i < len(metricFamilies); i++ {
-			fmt.Println("---------------")
-			fmt.Println(*metricFamilies[i].Name)
-			fmt.Println(*metricFamilies[i].Type)
-			fmt.Println(*metricFamilies[i].Help)
+	return cli.Exit("invalid output format; valid formats are: json, raw", 2)
+}
 
-			//for debugging
-			for i := 0; i < len(metricFamilies[i].Metric); i++ {
-				for j := 0; j < len((*metricFamilies[i].Metric[i]).Label); j++ {
+func filterRawMetrics(raw, metricFilterFlag, namespaceFlag string) string {
+	scanner := bufio.NewScanner(strings.NewReader(raw))
+	var b strings.Builder
 
-					fmt.Println("---------------")
-					fmt.Printf("Metric %d: Label %d:  %s  value: %s\n", i, j, *metricFamilies[i].Metric[i].Label[0].Name, *metricFamilies[i].Metric[i].Label[0].Value)
-
-					switch *metricFamilies[i].Type {
-
-					case dto.MetricType_COUNTER:
-						fmt.Printf("Counter Value: %f", *metricFamilies[i].Metric[i].Counter.Value)
-
-					case dto.MetricType_GAUGE:
-						fmt.Printf("Gauge Value: %f", *metricFamilies[i].Metric[i].Gauge.Value)
-
-					case dto.MetricType_SUMMARY:
-						fmt.Println(*metricFamilies[i].Metric[i].Summary.Quantile[0].Value)
-						fmt.Println(*metricFamilies[i].Metric[i].Summary.Quantile[0].Quantile)
-						fmt.Println(*metricFamilies[i].Metric[i].Summary.SampleCount)
-						fmt.Println(*metricFamilies[i].Metric[i].Summary.SampleSum)
-
-					}
-				}
-			}
+	for scanner.Scan() {
+		line := scanner.Text()
+		if shouldIncludeRawMetricLine(line, metricFilterFlag, namespaceFlag) {
+			b.WriteString(line)
+			b.WriteString("\n")
 		}
 	}
-	return nil
+
+	return b.String()
+}
+
+func shouldIncludeRawMetricLine(line, metricFilterFlag, namespaceFlag string) bool {
+	if line == "" || strings.HasPrefix(line, "#") {
+		return false
+	}
+
+	metricName := line
+	if i := strings.Index(line, "{"); i >= 0 {
+		metricName = line[:i]
+	} else if i := strings.Index(line, " "); i >= 0 {
+		metricName = line[:i]
+	}
+
+	if metricFilterFlag != "*" && metricName != metricFilterFlag {
+		return false
+	}
+
+	if namespaceFlag == "*" {
+		return true
+	}
+
+	start := strings.Index(line, "{")
+	end := strings.Index(line, "}")
+	if start < 0 || end <= start {
+		return false
+	}
+
+	labels := strings.Split(line[start+1:end], ",")
+	for _, label := range labels {
+		parts := strings.SplitN(label, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		value := strings.Trim(parts[1], "\"")
+		if key == "namespace" && value == namespaceFlag {
+			return true
+		}
+	}
+
+	return false
 }

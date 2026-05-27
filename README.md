@@ -6,16 +6,19 @@ The primary use for the kubernetes [kube-state-metrics](https://github.com/kuber
 
 ## Building kubestate
 
-Tool Requirements and Tested Versions
-* go v1.11
-* glide 0.13.0-dev (required for downstream projects, such as github.com/kubicorn - hopefully will fall off the requirements list at some point)
-* kubectl v1.12.0 (required to run, not necessarily to build)
+Tool Requirements
+* Go 1.24+ (module-aware)
+* kubectl (required to run, not necessarily to build)
 
-1. go get -u github.com/paulwelch/kubestate
+1. git clone https://github.com/paulwelch/kubestate.git
 
-2. go build
+2. cd kubestate
 
-3. go install
+3. go mod tidy
+
+4. go build ./...
+
+5. go install ./...
 
 #### Notes
 * Optional add-on API service kube-state-metrics is required.  See https://github.com/kubernetes/kube-state-metrics 
@@ -37,15 +40,19 @@ COMMANDS:
      get      Get metric
      top      Show top resource consumption by deployment
      watch    Watch metric
-     list     List metric families
+     list     List metrics
      help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --config value, -c value     path to config (default: "~/.kube/config")
-   --namespace value, -n value  namespace to show (default is all namespaces) (default: "*")
-   --help, -h                   show help
-   --version, -v                print the version
+     --config value              path to config (default: "~/.kube/config")
+     --namespace value           namespace to show (default is all namespaces) (default: "*")
+     --metrics-namespace value   namespace where kube-state-metrics service is running (auto-discovered if unset)
+     --insecure-skip-tls-verify  skip TLS certificate verification when connecting to Kubernetes API (default: false)
+     --help, -h                  show help
+     --version, -v               print the version
 ```
+
+Use long-form option names (for example `--namespace`, `--metric`, `--output`, and `--interval`).
 
 #### Examples
 One interesting insight the kube-state-metrics service provides is requested and limits of CPU and memory resources. Here's the kubernetes [documentation](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) and an example of using kubestate to show them by pod.
@@ -117,7 +124,7 @@ GAUGE	kube_pod_container_resource_requests_memory_bytes	The number of requested 
 ```
 Then, get the metric values for one using the kubestate get command with the metric filter flag. The jq command is a great way to format the json output to make it easier to read.
 ```bash
-~ » kubestate get -m kube_pod_container_resource_requests_memory_bytes | jq
+~ » kubestate get --metric kube_pod_container_resource_requests_memory_bytes | jq
 {
   "name": "kube_pod_container_resource_requests_memory_bytes",
   "help": "The number of requested memory bytes by a container.",
@@ -222,7 +229,7 @@ Then, get the metric values for one using the kubestate get command with the met
 ```
 Or, get the output in raw metric exposition format. The Prometheus project has a good description of metric [exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md).
 ```bash
-~ » kubestate get -o raw
+~ » kubestate get --output raw
 # HELP kube_configmap_created Unix creation timestamp
 # TYPE kube_configmap_created gauge
 kube_configmap_created{configmap="canal-config",namespace="kube-system"} 1.536336806e+09
@@ -234,3 +241,24 @@ kube_configmap_created{configmap="istio",namespace="istio-system"} 1.536620804e+
 .
 .
 ```
+
+You can also pass a metric name positionally:
+
+```bash
+~ » kubestate get kube_node_status_capacity
+```
+
+## Testing kubestate
+
+```bash
+go test ./...
+```
+
+## Migration notes
+
+- Dependency management is now Go modules (`go.mod`) rather than Glide.
+- CLI wiring has been migrated to `urfave/cli/v2`, which may change help and flag formatting output.
+- `get --output` now supports `json` and `raw` (the unfinished `table` mode has been removed with an explicit validation error).
+- `get` accepts either `--metric <name>` or a positional metric argument (`get <name>`).
+- `watch` is implemented with `--interval`, `--metric`, and `--output` flags for periodic refresh.
+- CI now enforces `go vet`, `go test`, and `go build` on push/PR.
