@@ -42,22 +42,22 @@ func (s sortedNodeKeys) Less(i, j int) bool {
 	return false
 }
 
-func topNodes(metricFamilies []dto.MetricFamily, namespaceFlag string) {
+func topNodes(metricFamilies []*dto.MetricFamily, namespaceFlag string) {
 	podAllocated := make(map[string]*pod)
 	nodes := make(map[string]*node)
 
 	for i := 0; i < len(metricFamilies); i++ {
-
-		var re, n, ns string
-
-		if *metricFamilies[i].Name == "kube_pod_container_resource_requests" ||
-			*metricFamilies[i].Name == "kube_pod_container_resource_limits" ||
-			*metricFamilies[i].Name == "kube_node_status_capacity_cpu_cores" ||
-			*metricFamilies[i].Name == "kube_node_status_capacity_memory_bytes" ||
-			*metricFamilies[i].Name == "kube_node_status_allocatable_memory_bytes" ||
-			*metricFamilies[i].Name == "kube_node_status_allocatable_cpu_cores" {
+		if metricFamilies[i].GetName() == "kube_pod_container_resource_requests" ||
+			metricFamilies[i].GetName() == "kube_pod_container_resource_limits" ||
+			metricFamilies[i].GetName() == "kube_node_status_capacity" ||
+			metricFamilies[i].GetName() == "kube_node_status_allocatable" ||
+			metricFamilies[i].GetName() == "kube_node_status_capacity_cpu_cores" ||
+			metricFamilies[i].GetName() == "kube_node_status_capacity_memory_bytes" ||
+			metricFamilies[i].GetName() == "kube_node_status_allocatable_memory_bytes" ||
+			metricFamilies[i].GetName() == "kube_node_status_allocatable_cpu_cores" {
 
 			for _, f := range metricFamilies[i].Metric {
+				re, n, ns := "", "", ""
 
 				for _, l := range f.Label {
 					switch *l.Name {
@@ -78,7 +78,7 @@ func topNodes(metricFamilies []dto.MetricFamily, namespaceFlag string) {
 					podAllocated[n].node = n
 				}
 
-				switch *metricFamilies[i].Name {
+				switch metricFamilies[i].GetName() {
 				case "kube_pod_container_resource_requests":
 					if namespaceFlag == "*" || namespaceFlag == ns {
 						if re == "cpu" {
@@ -95,6 +95,18 @@ func topNodes(metricFamilies []dto.MetricFamily, namespaceFlag string) {
 							podAllocated[n].memoryLimit += *f.Gauge.Value
 						}
 					}
+				case "kube_node_status_capacity":
+					if re == "cpu" {
+						nodes[n].cpuCapacity = *f.Gauge.Value
+					} else if re == "memory" {
+						nodes[n].memoryCapacity = *f.Gauge.Value
+					}
+				case "kube_node_status_allocatable":
+					if re == "cpu" {
+						nodes[n].cpuAllocatable = *f.Gauge.Value
+					} else if re == "memory" {
+						nodes[n].memoryAllocatable = *f.Gauge.Value
+					}
 				case "kube_node_status_capacity_memory_bytes":
 					nodes[n].memoryCapacity = *f.Gauge.Value
 				case "kube_node_status_capacity_cpu_cores":
@@ -110,6 +122,9 @@ func topNodes(metricFamilies []dto.MetricFamily, namespaceFlag string) {
 
 	s := make(sortedNodeKeys, 0, len(podAllocated))
 	for _, v := range podAllocated {
+		if nodes[v.node] == nil || nodes[v.node].memoryAllocatable == 0 || nodes[v.node].cpuAllocatable == 0 {
+			continue
+		}
 		//load factor is equally weighted average of cpu and memory requested as percentage of allocatable
 		load := ((v.memoryRequest / nodes[v.node].memoryAllocatable) + (v.cpuRequest / nodes[v.node].cpuAllocatable)) / 2
 		s = append(s, &nodeSortKey{v.node, load})

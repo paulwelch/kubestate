@@ -11,22 +11,46 @@
 package cmd
 
 import (
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"github.com/urfave/cli"
 	"fmt"
+	"sort"
+	"strings"
+
+	"github.com/urfave/cli/v2"
 )
 
 func List(c *cli.Context) error {
-
-	config := c.Parent().String("config")
-
-	metricFamilies, err := getMetrics(config)
+	raw, err := getRawMetricsFn(c.String("config"), c.String("metrics-namespace"), c.Bool("insecure-skip-tls-verify"))
 	if err != nil {
 		return err
 	}
 
-	for i := 0; i < len(metricFamilies); i++ {
-		fmt.Printf("%s\t%s\t%s\n", *metricFamilies[i].Type, *metricFamilies[i].Name, *metricFamilies[i].Help)
+	typeByName := make(map[string]string)
+	helpByName := make(map[string]string)
+
+	for _, line := range strings.Split(raw, "\n") {
+		if strings.HasPrefix(line, "# TYPE ") {
+			parts := strings.SplitN(strings.TrimPrefix(line, "# TYPE "), " ", 2)
+			if len(parts) == 2 {
+				typeByName[parts[0]] = strings.ToUpper(strings.TrimSpace(parts[1]))
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "# HELP ") {
+			parts := strings.SplitN(strings.TrimPrefix(line, "# HELP "), " ", 2)
+			if len(parts) == 2 {
+				helpByName[parts[0]] = strings.TrimSpace(parts[1])
+			}
+		}
+	}
+
+	names := make([]string, 0, len(helpByName))
+	for name := range helpByName {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		fmt.Printf("%s\t%s\t%s\n", typeByName[name], name, helpByName[name])
 	}
 
 	return nil
