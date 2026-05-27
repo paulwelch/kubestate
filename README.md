@@ -4,6 +4,21 @@ Kubernetes State Metrics Utility
 
 The primary use for the kubernetes [kube-state-metrics](https://github.com/kubernetes/kube-state-metrics/) add-on service is to provide cluster state metrics to monitoring systems like [Prometheus](https://prometheus.io/). But, it may sometimes be useful to get the same metrics in a script or directly from your command line. That's where kubestate comes in. It's a command line utility that calls the kube-state-metrics API, then shows interesting views of the metrics. You can also use it to get the raw data values in various formats that can be used by scripts or other utilities.
 
+## Installing kubestate
+
+### Homebrew
+
+```bash
+brew tap paulwelch/tap
+brew install paulwelch/tap/kubestate
+```
+
+### Go
+
+```bash
+go install github.com/paulwelch/kubestate@latest
+```
+
 ## Building kubestate
 
 Tool Requirements
@@ -34,7 +49,7 @@ USAGE:
    kubestate [global options] command [command options] [arguments...]
 
 VERSION:
-   0.0.1
+   0.0.4
 
 COMMANDS:
      get      Get metric
