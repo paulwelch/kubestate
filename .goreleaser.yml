@@ -11,6 +11,8 @@ builds:
   - env:
       - CGO_ENABLED=0
     binary: kubestate
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
 
 archives:
   - formats: [tar.gz]
