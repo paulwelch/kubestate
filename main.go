@@ -18,11 +18,13 @@ import (
 	"time"
 )
 
+var version = "dev"
+
 func newApp() *cli.App {
 	app := cli.NewApp()
 	app.Name = "kubestate"
 	app.Usage = "Show kubernetes state metrics"
-	app.Version = "0.0.4"
+	app.Version = version
 	app.Compiled = time.Now()
 
 	app.Flags = []cli.Flag{
